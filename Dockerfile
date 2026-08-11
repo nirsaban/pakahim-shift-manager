@@ -16,6 +16,10 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# prisma.config.ts eagerly resolves DATABASE_URL to load, even for `generate`
+# (which never actually connects to a DB) — this placeholder just satisfies
+# that check during the build; the real URL comes from .env.prod at runtime.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 RUN npm run build
 
