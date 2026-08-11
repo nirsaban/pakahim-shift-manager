@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: takahim-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: takahim
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.prod}
+      POSTGRES_DB: takahim
+    volumes:
+      - takahim-db-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U takahim"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: takahim-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - takahim-redis-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Built and pushed by .github/workflows/deploy.yml — the VPS only pulls,
+    # it never builds. Image is public (no secrets baked in; those come from
+    # .env.prod at runtime), so no registry login is needed to pull it.
+    image: ghcr.io/${IMAGE_OWNER:-nirsaban}/takahim-shift-manager:latest
+    container_name: takahim-app
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@postgres:5432/takahim
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # No published host ports — reached from the shared yogev-nginx reverse
+    # proxy (miltech.cloud) over miltech-association-net, same pattern as
+    # control-room / kursim / Amutot.
+    networks:
+      - internal
+      - miltech-association-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  internal:
+  miltech-association-net:
+    external: true
+    name: miltech-association-net
+
+volumes:
+  takahim-db-data:
+  takahim-redis-data:

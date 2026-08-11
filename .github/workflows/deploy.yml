@@ -1,0 +1,168 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/takahim-shift-manager
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Registry layer pulls/pushes occasionally 503 — retry the whole step
+      # a couple times before giving up, cheaper than failing the run.
+      - name: Build and push (attempt 1)
+        id: push_1
+        continue-on-error: true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Build and push (attempt 2)
+        if: steps.push_1.outcome == 'failure'
+        id: push_2
+        continue-on-error: true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Build and push (attempt 3)
+        if: steps.push_1.outcome == 'failure' && steps.push_2.outcome == 'failure'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+      # ConnectTimeout/ServerAlive* keep a dead-server run from hanging for
+      # the default ~120s ssh timeout; BatchMode never prompts for a password.
+      - name: SSH pre-flight (fail fast if server unreachable)
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          echo "Probing TCP/22 on $DEPLOY_SSH_HOST..."
+          if ! timeout 10 bash -c "</dev/tcp/$DEPLOY_SSH_HOST/22"; then
+            echo "::error::TCP/22 unreachable on $DEPLOY_SSH_HOST"
+            exit 1
+          fi
+
+      - name: Copy compose file to server
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i $HOME/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4"
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p /opt/takahim"
+          scp $SSH_OPTS docker-compose.prod.yml "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:/opt/takahim/docker-compose.prod.yml"
+
+      - name: Deploy on server
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i $HOME/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4"
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" bash -s << 'ENDSSH'
+            set -e
+            cd /opt/takahim
+            if [ ! -f .env.prod ]; then
+              echo "::error::/opt/takahim/.env.prod is missing on the server — see DEPLOY.md one-time setup"
+              exit 1
+            fi
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}"
+          ENDSSH
+
+      - name: Health check
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          sleep 20
+          SSH_OPTS="-i $HOME/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4"
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" bash -s << 'ENDSSH'
+            set -e
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' takahim-app)
+            echo "Container health: $STATUS"
+            if [ "$STATUS" != "healthy" ]; then
+              docker compose -f /opt/takahim/docker-compose.prod.yml logs --tail=50 app
+              exit 1
+            fi
+            echo "Health check passed!"
+          ENDSSH

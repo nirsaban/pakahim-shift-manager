@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ראיון גילוי — מנהל המשמרות</title>
+<style>
+  :root {
+    --ink: #10202f;
+    --ink-soft: #45596b;
+    --ink-faint: #748899;
+    --paper: #eef2f5;
+    --surface: #ffffff;
+    --surface-2: #e2e9ee;
+    --line: #cfd9e1;
+    --line-strong: #aebcca;
+    --rail: #17324f;
+    --rail-ink: #0c1e33;
+    --rail-text: #dce6ee;
+    --amber: #a8641a;
+    --amber-strong: #8a5115;
+    --amber-tint: #f4e3cd;
+    --red: #a53c3c;
+    --red-tint: #f6dede;
+    --good: #2c7156;
+    --focus: #1b6ea8;
+    --shadow: 0 1px 2px rgba(16, 32, 47, 0.06), 0 8px 24px -12px rgba(16, 32, 47, 0.18);
+    --font-heb: "Segoe UI", Assistant, "Noto Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e7edf2; --ink-soft: #a9bac8; --ink-faint: #75879a;
+      --paper: #0b1622; --surface: #101f30; --surface-2: #16283c;
+      --line: #263a4f; --line-strong: #33495f;
+      --rail: #0c1c2c; --rail-ink: #060f19; --rail-text: #d8e3ec;
+      --amber: #e7ab5c; --amber-strong: #f0bd7a; --amber-tint: #3a2c17;
+      --red: #e2867f; --red-tint: #3a2323; --good: #7cd1ab; --focus: #5fb2e8;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e7edf2; --ink-soft: #a9bac8; --ink-faint: #75879a;
+    --paper: #0b1622; --surface: #101f30; --surface-2: #16283c;
+    --line: #263a4f; --line-strong: #33495f;
+    --rail: #0c1c2c; --rail-ink: #060f19; --rail-text: #d8e3ec;
+    --amber: #e7ab5c; --amber-strong: #f0bd7a; --amber-tint: #3a2c17;
+    --red: #e2867f; --red-tint: #3a2323; --good: #7cd1ab; --focus: #5fb2e8;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--paper); }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--font-heb);
+    line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+  .tabular { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible, textarea:focus-visible { outline: 2.5px solid var(--focus); outline-offset: 2px; }
+
+  .rail-header {
+    background: var(--rail); color: var(--rail-text);
+    padding: 1.5rem 1.25rem 1.1rem; border-block-end: 3px solid var(--amber);
+  }
+  .rail-header__top {
+    max-width: 44rem; margin: 0 auto; display: flex;
+    align-items: flex-start; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap;
+  }
+  .rail-header__eyebrow {
+    font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--amber-strong); margin: 0 0 0.4rem;
+  }
+  .rail-header h1 { font-size: clamp(1.35rem, 3vw, 1.75rem); margin: 0 0 0.35rem; font-weight: 700; text-wrap: balance; }
+  .rail-header p { margin: 0; max-width: 34rem; color: var(--rail-text); opacity: 0.86; font-size: 0.92rem; }
+
+  .progress-plate {
+    background: var(--rail-ink); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px; padding: 0.6rem 0.9rem; min-width: 10rem; flex-shrink: 0;
+  }
+  .progress-plate__count { font-family: var(--font-mono); font-size: 1.35rem; font-variant-numeric: tabular-nums; color: var(--amber-strong); margin: 0 0 0.4rem; }
+  .progress-plate__count small { font-size: 0.9rem; color: var(--rail-text); opacity: 0.7; }
+  .progress-bar { height: 5px; background: rgba(255,255,255,0.14); border-radius: 3px; overflow: hidden; }
+  .progress-bar__fill { height: 100%; background: var(--amber); width: 0%; transition: width 0.25s ease; }
+
+  .privacy-note {
+    max-width: 44rem; margin: 0.75rem auto 0; font-size: 0.76rem; color: var(--rail-text); opacity: 0.7;
+  }
+  .privacy-note strong { color: var(--amber-strong); opacity: 1; font-weight: 600; }
+
+  .banner {
+    max-width: 44rem; margin: 1rem auto 0; padding: 0.7rem 1rem;
+    background: var(--amber-tint); border: 1px solid var(--amber); color: var(--ink);
+    border-radius: 4px; font-size: 0.83rem; display: none;
+  }
+  .banner.is-visible { display: block; }
+
+  main {
+    max-width: 44rem; margin: 0 auto; padding: 1.5rem 1.25rem 4rem;
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+
+  .intro-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 1rem 1.15rem; font-size: 0.9rem; color: var(--ink-soft); box-shadow: var(--shadow);
+  }
+  .intro-card strong { color: var(--ink); }
+
+  .qcard {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: var(--shadow); padding: 1rem 1.15rem;
+    display: grid; grid-template-columns: 2.4rem 1fr; gap: 0.75rem;
+  }
+
+  .qcard__num { font-family: var(--font-mono); font-size: 0.8rem; color: var(--amber-strong); padding-top: 0.5rem; }
+  .qcard__body { min-width: 0; }
+  .qcard label { display: block; font-size: 0.96rem; color: var(--ink); margin-bottom: 0.55rem; font-weight: 600; }
+
+  .qinput { display: flex; gap: 0.5rem; align-items: flex-start; }
+  textarea.qtext {
+    flex: 1; min-width: 0; resize: vertical; min-height: 3.4rem;
+    padding: 0.6rem 0.75rem; background: var(--paper); border: 1px solid var(--line-strong);
+    border-radius: 4px; color: var(--ink); font-family: var(--font-heb); font-size: 0.92rem; line-height: 1.55;
+  }
+  textarea.qtext::placeholder { color: var(--ink-faint); }
+
+  .mic-btn {
+    flex-shrink: 0; width: 2.3rem; height: 2.3rem; border-radius: 50%;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mic-btn:hover { border-color: var(--amber); color: var(--amber-strong); }
+  .mic-btn.is-recording {
+    background: var(--red-tint); border-color: var(--red); color: var(--red);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .mic-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(165,60,60,0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(165,60,60,0); }
+  }
+
+  .qstatus {
+    min-height: 1.1rem; font-size: 0.74rem; color: var(--ink-faint);
+    margin-top: 0.3rem; font-family: var(--font-mono);
+  }
+  .qstatus.is-saved { color: var(--good); }
+  .qstatus.is-recording { color: var(--red); }
+  .qstatus.is-error { color: var(--red); }
+
+  footer.credit { text-align: center; font-size: 0.75rem; color: var(--ink-faint); padding: 0.5rem 0; }
+</style>
+</head>
+<body>
+
+<header class="rail-header">
+  <div class="rail-header__top">
+    <div>
+      <p class="rail-header__eyebrow">שאלון גילוי מוצר · 12 שאלות</p>
+      <h1>מה צריך לדעת כדי לבנות את מנהל המשמרות נכון</h1>
+      <p>אפשר להקליד תשובה, או ללחוץ על סמל המיקרופון ולדבר. כל תשובה נשמרת ישירות במאגר הנתונים תוך כדי מענה.</p>
+    </div>
+    <div class="progress-plate">
+      <p class="progress-plate__count tabular"><span id="answeredCount">0</span><small> / <span id="totalCount">12</span> נענו</small></p>
+      <div class="progress-bar"><div class="progress-bar__fill" id="progressFill"></div></div>
+    </div>
+  </div>
+  <p class="privacy-note"><strong>שמירה:</strong> התשובות נשמרות ישירות במסד הנתונים של המערכת, ולא רק בדפדפן.</p>
+</header>
+
+<div class="banner" id="unsupportedBanner">
+  הדפדפן הנוכחי לא תומך בהמרת דיבור לטקסט (או שההרשאה למיקרופון חסומה). אפשר עדיין להקליד תשובות בחופשיות.
+</div>
+
+<main>
+  <div class="intro-card">
+    <strong>איך זה עובד:</strong> ענו על 12 השאלות הבאות, לפי הסדר או לא — אין חובה לסיים ברצף אחד.
+    כל תשובה נשמרת אוטומטית מספר שניות אחרי שמפסיקים להקליד או לדבר.
+  </div>
+
+  <div id="questionsRoot"></div>
+
+  <footer class="credit">האוסף נשמר במסד הנתונים המקומי של המערכת</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var QUESTIONS = [
+    { id: "q1", section: "מטרה", q: "מה הבעיה המרכזית שהמערכת הזו נועדה לפתור?" },
+    { id: "q2", section: "מטרה", q: "איך נראית הצלחה בעוד שנה? מה המדד המרכזי שיגיד לכם שזה עבד?" },
+    { id: "q3", section: "תפקידים", q: "אילו תפקידים קיימים בפועל סביב שיבוץ המשמרות, ומה כל אחד צריך לראות ולעשות?" },
+    { id: "q4", section: "תפקידים", q: "מה השם הנכון בעברית לכל תפקיד, כפי שקוראים לו בפועל בשטח?" },
+    { id: "q5", section: "משמרות", q: "איך נראה היום תהליך יצירת ופרסום לוח המשמרות השבועי?" },
+    { id: "q6", section: "משמרות", q: "מה קורה כשמשמרת צריכה להתחלף (מחלה, חופשה, תקלה)? מי מעדכן ומי מאשר?" },
+    { id: "q7", section: "אירועים", q: "אילו סוגי אירועים פקח צריך יכולת לדווח בזמן אמת, ולמי מגיע הדיווח קודם?" },
+    { id: "q8", section: "התראות", q: "מה ערוץ ההתראה המועדף בפועל — פוש באפליקציה, אימייל, וואטסאפ, SMS?" },
+    { id: "q9", section: "ארגון", q: "האם המערכת משרתת ארגון אחד בלבד, או כמה חברות/מפעילים בנפרד?" },
+    { id: "q10", section: "זהות", q: "מה מזהה עובד באופן ייחודי (מספר עובד, טלפון, אימייל), ואיך עובד חדש מצטרף למערכת?" },
+    { id: "q11", section: "נתונים", q: "איך נראה בפועל קובץ האקסל עם לוח המשמרות — כמה גיליונות, אילו עמודות, שדות חסרים?" },
+    { id: "q12", section: "עתיד", q: "מה הפיצ'ר הבא הכי חשוב אחרי גרסה בסיסית, ויש עוד משהו חשוב שלא נשאלתם עליו?" }
+  ];
+
+  var API_URL = "/api/discovery";
+  var savedAnswers = {};
+
+  function micIcon() {
+    return '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+      '<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" fill="currentColor"/>' +
+      '<path d="M19 11a7 7 0 0 1-14 0" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '</svg>';
+  }
+  function stopIcon() {
+    return '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+      '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>';
+  }
+
+  var root = document.getElementById("questionsRoot");
+
+  QUESTIONS.forEach(function (item, idx) {
+    var card = document.createElement("div");
+    card.className = "qcard";
+
+    var num = document.createElement("div");
+    num.className = "qcard__num tabular";
+    num.textContent = String(idx + 1).padStart(2, "0");
+    card.appendChild(num);
+
+    var body = document.createElement("div");
+    body.className = "qcard__body";
+
+    var label = document.createElement("label");
+    label.setAttribute("for", "ta-" + item.id);
+    label.textContent = item.q;
+    body.appendChild(label);
+
+    var inputWrap = document.createElement("div");
+    inputWrap.className = "qinput";
+
+    var ta = document.createElement("textarea");
+    ta.className = "qtext";
+    ta.id = "ta-" + item.id;
+    ta.placeholder = "הקלידו כאן, או השתמשו במיקרופון →";
+    inputWrap.appendChild(ta);
+
+    var micBtn = document.createElement("button");
+    micBtn.type = "button";
+    micBtn.className = "mic-btn";
+    micBtn.setAttribute("aria-label", "הקלטה קולית לשאלה: " + item.q);
+    micBtn.dataset.qid = item.id;
+    micBtn.innerHTML = micIcon();
+    inputWrap.appendChild(micBtn);
+
+    body.appendChild(inputWrap);
+
+    var status = document.createElement("div");
+    status.className = "qstatus";
+    status.id = "status-" + item.id;
+    status.setAttribute("aria-live", "polite");
+    body.appendChild(status);
+
+    card.appendChild(body);
+    root.appendChild(card);
+
+    var saveTimer = null;
+    ta.addEventListener("input", function () {
+      clearTimeout(saveTimer);
+      status.textContent = "";
+      status.className = "qstatus";
+      saveTimer = setTimeout(function () {
+        saveAnswer(item, ta.value, "typed", status);
+      }, 500);
+    });
+
+    micBtn.addEventListener("click", function () {
+      toggleRecording(item, ta, status, micBtn);
+    });
+  });
+
+  function updateProgress() {
+    var answered = QUESTIONS.filter(function (item) {
+      var a = savedAnswers[item.id];
+      return a && a.answer && a.answer.trim().length > 0;
+    }).length;
+    document.getElementById("answeredCount").textContent = String(answered);
+    var pct = Math.round((answered / QUESTIONS.length) * 100);
+    document.getElementById("progressFill").style.width = pct + "%";
+  }
+
+  function saveAnswer(item, text, method, statusEl) {
+    statusEl.textContent = "שומר…";
+    statusEl.className = "qstatus";
+
+    fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        questionId: item.id,
+        section: item.section,
+        question: item.q,
+        answer: text,
+        method: method
+      })
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("save failed");
+        return res.json();
+      })
+      .then(function () {
+        savedAnswers[item.id] = { answer: text };
+        statusEl.textContent = text.trim() ? "נשמר" : "";
+        statusEl.className = "qstatus" + (text.trim() ? " is-saved" : "");
+        updateProgress();
+      })
+      .catch(function () {
+        statusEl.textContent = "שגיאה בשמירה, ננסה שוב בעריכה הבאה";
+        statusEl.className = "qstatus is-error";
+      });
+  }
+
+  // ---------- load existing answers ----------
+
+  fetch(API_URL)
+    .then(function (res) { return res.ok ? res.json() : { answers: [] }; })
+    .then(function (data) {
+      (data.answers || []).forEach(function (a) {
+        savedAnswers[a.questionId] = a;
+        var ta = document.getElementById("ta-" + a.questionId);
+        var statusEl = document.getElementById("status-" + a.questionId);
+        if (ta) ta.value = a.answer || "";
+        if (statusEl && a.answer && a.answer.trim()) {
+          statusEl.textContent = "נשמר";
+          statusEl.className = "qstatus is-saved";
+        }
+      });
+      updateProgress();
+    })
+    .catch(function () { updateProgress(); });
+
+  // ---------- speech recognition ----------
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognition = null;
+  var activeQid = null;
+  var baseTextAtStart = "";
+
+  if (!SR) {
+    document.getElementById("unsupportedBanner").classList.add("is-visible");
+    document.querySelectorAll(".mic-btn").forEach(function (b) { b.disabled = true; });
+  } else {
+    recognition = new SR();
+    recognition.lang = "he-IL";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+  }
+
+  function toggleRecording(item, ta, statusEl, micBtn) {
+    if (!SR) return;
+
+    if (activeQid === item.id) {
+      recognition.stop();
+      return;
+    }
+    if (activeQid) recognition.stop();
+
+    activeQid = item.id;
+    baseTextAtStart = ta.value ? ta.value.replace(/\s+$/, "") : "";
+
+    micBtn.classList.add("is-recording");
+    micBtn.innerHTML = stopIcon();
+    statusEl.textContent = "מקליט… דברו עכשיו";
+    statusEl.className = "qstatus is-recording";
+
+    try {
+      recognition.start();
+    } catch (e) {
+      finishRecording(statusEl, micBtn, "לא ניתן להפעיל את המיקרופון כרגע", true);
+    }
+  }
+
+  function finishRecording(statusEl, micBtn, message, isError) {
+    activeQid = null;
+    micBtn.classList.remove("is-recording");
+    micBtn.innerHTML = micIcon();
+    if (message) {
+      statusEl.textContent = message;
+      statusEl.className = "qstatus" + (isError ? " is-error" : "");
+    }
+  }
+
+  if (recognition) {
+    recognition.onresult = function (event) {
+      if (!activeQid) return;
+      var ta = document.getElementById("ta-" + activeQid);
+      var statusEl = document.getElementById("status-" + activeQid);
+      if (!ta) return;
+
+      var finalChunk = "";
+      var interimChunk = "";
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        var res = event.results[i];
+        if (res.isFinal) finalChunk += res[0].transcript;
+        else interimChunk += res[0].transcript;
+      }
+
+      if (finalChunk) {
+        baseTextAtStart = (baseTextAtStart ? baseTextAtStart + " " : "") + finalChunk.trim();
+        ta.value = baseTextAtStart;
+        var item = QUESTIONS.find(function (q) { return q.id === activeQid; });
+        if (item) saveAnswer(item, ta.value, "voice", statusEl);
+      } else {
+        ta.value = baseTextAtStart + (baseTextAtStart && interimChunk ? " " : "") + interimChunk;
+      }
+
+      if (statusEl && interimChunk) {
+        statusEl.textContent = "מקליט… " + interimChunk;
+        statusEl.className = "qstatus is-recording";
+      }
+    };
+
+    recognition.onerror = function (event) {
+      if (!activeQid) return;
+      var statusEl = document.getElementById("status-" + activeQid);
+      var micBtn = document.querySelector('.mic-btn[data-qid="' + activeQid + '"]');
+      var msg = "אירעה שגיאה בהקלטה";
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        msg = "הגישה למיקרופון נחסמה — יש לאשר הרשאה בדפדפן";
+      } else if (event.error === "no-speech") {
+        msg = "לא זוהה דיבור, נסו שוב";
+      }
+      if (statusEl && micBtn) finishRecording(statusEl, micBtn, msg, true);
+      else activeQid = null;
+    };
+
+    recognition.onend = function () {
+      if (!activeQid) return;
+      var statusEl = document.getElementById("status-" + activeQid);
+      var micBtn = document.querySelector('.mic-btn[data-qid="' + activeQid + '"]');
+      if (statusEl && micBtn) finishRecording(statusEl, micBtn, null, false);
+      else activeQid = null;
+    };
+  }
+})();
+</script>
+</body>
+</html>

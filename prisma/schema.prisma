@@ -1,0 +1,234 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id                String     @id @default(cuid())
+  name              String
+  slug              String     @unique
+  subscriptionPlan  String     @default("free") // free, pro, enterprise
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  users             User[]
+  teams             Team[]
+  shifts            Shift[]
+  incidents         Incident[]
+
+  @@map("tenants")
+}
+
+model User {
+  id                String     @id @default(cuid())
+  tenantId          String
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  email             String?    // null for workers created from a roster import who haven't logged in yet
+  phone             String?
+  password          String?    // null if using phone OTP
+  
+  firstName         String?
+  lastName          String?
+  city              String?    // Israel city (from API)
+  workerNumber      String?    // Unique within tenant
+  
+  role              UserRole   @default(TAKAHIM)
+  teamId            String?    // null for ADMIN/SHIBUTZ
+  team              Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  
+  fcmToken          String?    // Firebase Cloud Messaging token for push notifications
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  shifts             Shift[]
+  incidents          Incident[]
+  teamLeadIncidents  Incident[]          @relation("TeamLead")
+  ledTeams           Team[]              @relation("TeamLeadOf")
+  incidentRecipients IncidentRecipient[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, workerNumber])
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN  // Platform-wide admin
+  ADMIN        // Tenant admin
+  SHIBUTZ      // Shift scheduler
+  TEAM_LEAD    // Team manager
+  TAKAHIM      // Worker/operator
+  MAINTENANCE  // מחלקת אחזקה - handles train-equipment fault reports
+}
+
+model Team {
+  id                String     @id @default(cuid())
+  tenantId          String
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name              String
+  teamLeadId        String
+  teamLead          User       @relation("TeamLeadOf", fields: [teamLeadId], references: [id], onDelete: Restrict)
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  users             User[]
+  shifts            Shift[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("teams")
+}
+
+model Shift {
+  id                String     @id @default(cuid())
+  tenantId          String
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  workerId          String
+  worker            User       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  
+  teamId            String
+  team              Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  date              DateTime   // Date of the shift (no time)
+  startTime         DateTime   // Full timestamp with time
+  endTime           DateTime   // Full timestamp with time
+  
+  status            ShiftStatus @default(SCHEDULED) // SCHEDULED, STARTED, COMPLETED, CANCELLED, HOLIDAY, SICK
+  replacementId     String?    // Worker who replaces this worker
+
+  region            String?    // region/team label as it appeared in the imported roster file
+  notes             String?    // route, train sets, Mirs radio id, trainee, reserve-list tag - combined from import
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([tenantId])
+  @@index([workerId])
+  @@index([teamId])
+  @@index([date])
+  @@map("shifts")
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  STARTED
+  COMPLETED
+  CANCELLED
+  HOLIDAY
+  SICK
+}
+
+model Incident {
+  id                String     @id @default(cuid())
+  tenantId          String
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  workerId          String
+  worker            User       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  
+  teamLeadId        String
+  teamLead          User       @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: Restrict)
+
+  title             String
+  description       String
+
+  status            IncidentStatus @default(OPEN) // OPEN, ACKNOWLEDGED, RESOLVED
+  severity          String     @default("normal") // low, normal, high, critical
+  route             IncidentRoute @default(TEAM_LEAD) // who this was reported as - drives fan-out recipients
+
+  recipients        IncidentRecipient[]
+
+  createdAt         DateTime   @default(now())
+  resolvedAt        DateTime?
+  updatedAt         DateTime   @updatedAt
+
+  @@index([tenantId])
+  @@index([workerId])
+  @@index([teamLeadId])
+  @@map("incidents")
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+// q7 (client discovery): regular fault -> team lead; train-equipment fault -> מחלקת אחזקה;
+// emergency -> "נוהל אירועים אחד" fanning out to every relevant party at once.
+enum IncidentRoute {
+  TEAM_LEAD
+  MAINTENANCE
+  EMERGENCY_BROADCAST
+}
+
+// Fan-out table: every user who should see a given incident. Team lead is always
+// included (situational awareness for their team); MAINTENANCE/EMERGENCY_BROADCAST
+// add the relevant additional recipients on top.
+model IncidentRecipient {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([incidentId, userId])
+  @@index([incidentId])
+  @@index([userId])
+  @@map("incident_recipients")
+}
+
+model ShiftFile {
+  id                String     @id @default(cuid())
+  tenantId          String
+  
+  filename          String
+  fileUrl           String     // Cloudinary or S3 URL
+  
+  uploadedBy        String     // User ID
+  
+  status            FileStatus @default(PENDING) // PENDING, VALIDATED, IMPORTED, FAILED
+  errorMessage      String?
+  
+  importedShiftCount Int       @default(0)
+  
+  createdAt         DateTime   @default(now())
+
+  @@index([tenantId])
+  @@map("shift_files")
+}
+
+enum FileStatus {
+  PENDING
+  VALIDATED
+  IMPORTED
+  FAILED
+}
+
+model DiscoveryAnswer {
+  id          String   @id @default(cuid())
+  questionId  String   @unique
+  section     String
+  question    String
+  answer      String
+  method      String?  // typed | voice
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("discovery_answers")
+}

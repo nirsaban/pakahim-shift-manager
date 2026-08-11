@@ -9,17 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Rail-blue: navy palette evoking Israel Railways' livery
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c3d66',
+          50: '#eaf2fb',
+          100: '#cfe3f6',
+          200: '#9fc7ed',
+          300: '#6ba7e0',
+          400: '#3d86ce',
+          500: '#1f68b0',
+          600: '#145591',
+          700: '#103f6d',
+          800: '#0c2e52',
+          900: '#081b33',
         },
       },
     },
