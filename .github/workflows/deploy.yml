@@ -137,8 +137,8 @@ jobs:
               echo "::error::/opt/takahim/.env.prod is missing on the server — see DEPLOY.md one-time setup"
               exit 1
             fi
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
             docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}"
           ENDSSH
 
@@ -161,7 +161,7 @@ jobs:
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' takahim-app)
             echo "Container health: $STATUS"
             if [ "$STATUS" != "healthy" ]; then
-              docker compose -f /opt/takahim/docker-compose.prod.yml logs --tail=50 app
+              docker compose -f /opt/takahim/docker-compose.prod.yml --env-file /opt/takahim/.env.prod logs --tail=50 app
               exit 1
             fi
             echo "Health check passed!"

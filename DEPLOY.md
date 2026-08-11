@@ -29,8 +29,8 @@ on the VPS to pull it.
    on the VPS.
 6. Pull and start:
    ```bash
-   docker compose -f docker-compose.prod.yml pull
-   docker compose -f docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
    ```
 7. Seed once, manually — **do not** rely on any automatic seeding:
    ```bash
@@ -82,5 +82,5 @@ Migrations are forward-only (no down migrations — normal for Prisma):
    ```bash
    docker pull ghcr.io/nirsaban/takahim-shift-manager:<previous-sha>
    docker tag ghcr.io/nirsaban/takahim-shift-manager:<previous-sha> ghcr.io/nirsaban/takahim-shift-manager:latest
-   docker compose -f docker-compose.prod.yml up -d app
+   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d app
    ```
