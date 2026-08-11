@@ -38,7 +38,7 @@ async function main() {
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'teamlead@demo.local',
+      email: 'nirsa11+teamlead@gmail.com',
       firstName: 'רונית',
       lastName: 'כהן',
       city: 'תל אביב',
@@ -60,7 +60,7 @@ async function main() {
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'shibutz@demo.local',
+      email: 'nirsa11+shibutz@gmail.com',
       firstName: 'דנה',
       lastName: 'לוי',
       city: 'חיפה',
@@ -74,7 +74,7 @@ async function main() {
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'maintenance@demo.local',
+      email: 'nirsa11+maintenance@gmail.com',
       firstName: 'אלי',
       lastName: 'פרץ',
       city: 'לוד',
@@ -98,9 +98,9 @@ async function main() {
   });
 
   const workerSeeds = [
-    { email: 'worker1@demo.local', firstName: 'יוסי', lastName: 'מזרחי', workerNumber: '1001', city: 'תל אביב', phone: '0501234567' },
-    { email: 'worker2@demo.local', firstName: 'שירה', lastName: 'אברהם', workerNumber: '1002', city: 'רמת גן', phone: '0522345678' },
-    { email: 'worker3@demo.local', firstName: 'אבי', lastName: 'דוד', workerNumber: '1003', city: 'חולון', phone: '0533456789' },
+    { email: 'nirsa11+worker1@gmail.com', firstName: 'יוסי', lastName: 'מזרחי', workerNumber: '1001', city: 'תל אביב', phone: '0501234567' },
+    { email: 'nirsa11+worker2@gmail.com', firstName: 'שירה', lastName: 'אברהם', workerNumber: '1002', city: 'רמת גן', phone: '0522345678' },
+    { email: 'nirsa11+worker3@gmail.com', firstName: 'אבי', lastName: 'דוד', workerNumber: '1003', city: 'חולון', phone: '0533456789' },
   ];
 
   const workers = [];
