@@ -43,8 +43,14 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@postgres:5432/takahim
-      REDIS_URL: redis://redis:6379
+      # Use the container_name (globally unique) rather than the service-name
+      # alias "postgres"/"redis" — the app is also attached to the shared
+      # miltech-association-net for the nginx proxy, and other projects on
+      # that network (e.g. amutot-postgres) register their own "postgres"
+      # service-name alias there too. That created a real DNS collision:
+      # "postgres" resolved to amutot's DB instead of this project's own.
+      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@takahim-db:5432/takahim
+      REDIS_URL: redis://takahim-redis:6379
     depends_on:
       postgres:
         condition: service_healthy
