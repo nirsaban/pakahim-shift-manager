@@ -40,6 +40,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # `docker exec` commands (e.g. one-off seeding) after a deploy.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# schema.prisma has no datasource url — Prisma 7 keeps that in prisma.config.ts,
+# which `prisma migrate deploy` needs at runtime to find DATABASE_URL.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --chown=nextjs:nodejs docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
