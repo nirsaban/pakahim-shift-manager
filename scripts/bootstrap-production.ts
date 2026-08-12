@@ -23,7 +23,11 @@ const ADMIN_EMAIL = process.env.BOOTSTRAP_ADMIN_EMAIL ?? 'yakirsaban47@gmail.com
 const ADMIN_NAME = process.env.BOOTSTRAP_ADMIN_NAME ?? 'יקיר סבן';
 const ADMIN_WORKER_NUMBER = process.env.BOOTSTRAP_ADMIN_WORKER_NUMBER ?? '900001';
 
-const WORKER_EMAIL = process.env.BOOTSTRAP_WORKER_EMAIL ?? 'yakir.worker@pakahim.local';
+// A Gmail plus-alias: distinct enough to satisfy @@unique([tenantId, email]),
+// but delivered to the same inbox as the admin address — so one person holds
+// both accounts and both login codes arrive in the same mailbox, with no OTP
+// redirect needed.
+const WORKER_EMAIL = process.env.BOOTSTRAP_WORKER_EMAIL ?? 'yakirsaban47+worker@gmail.com';
 const WORKER_NAME = process.env.BOOTSTRAP_WORKER_NAME ?? 'יקיר סבן (פקח)';
 const WORKER_NUMBER = process.env.BOOTSTRAP_WORKER_NUMBER ?? '900002';
 
@@ -108,12 +112,10 @@ async function main(): Promise<void> {
   await prisma.$disconnect();
   await import('../prisma/seed-reference');
 
-  console.log('\nLogin is by worker number.');
-  console.log(`  admin  ${ADMIN_WORKER_NUMBER} -> code goes to ${ADMIN_EMAIL} (its own address, no redirect needed)`);
-  console.log(`  worker ${WORKER_NUMBER} -> ${WORKER_EMAIL} cannot receive mail, so redirect it:`);
-  // Unquoted on purpose: Docker Compose `env_file` does not shell-parse, so
-  // quotes would end up inside the value.
-  console.log(`\n  OTP_REDIRECT_MAP=${WORKER_EMAIL}=${ADMIN_EMAIL}`);
+  console.log('\nLogin is by worker number. Both codes land in the same inbox:');
+  console.log(`  admin  ${ADMIN_WORKER_NUMBER} -> ${ADMIN_EMAIL}`);
+  console.log(`  worker ${WORKER_NUMBER} -> ${WORKER_EMAIL}`);
+  console.log('\nNo OTP_REDIRECT_MAP needed — the plus-alias delivers to the same mailbox.');
 }
 
 main().catch(async (e) => {
