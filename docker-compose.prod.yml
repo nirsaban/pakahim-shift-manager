@@ -1,14 +1,18 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: takahim-db
+    container_name: pakahim-db
     restart: unless-stopped
     environment:
+      # Internal Postgres user/db are still literally "takahim" (set once at
+      # initdb inside the existing volume - invisible to end users, and a
+      # rename here needs its own ALTER USER/DATABASE pass against the live
+      # volume, done separately from this container/volume rename).
       POSTGRES_USER: takahim
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.prod}
       POSTGRES_DB: takahim
     volumes:
-      - takahim-db-data:/var/lib/postgresql/data
+      - pakahim-db-data:/var/lib/postgresql/data
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U takahim"]
@@ -18,11 +22,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: takahim-redis
+    container_name: pakahim-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - takahim-redis-data:/data
+      - pakahim-redis-data:/data
     networks: [internal]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -35,7 +39,7 @@ services:
     # it never builds. Image is public (no secrets baked in; those come from
     # .env.prod at runtime), so no registry login is needed to pull it.
     image: ghcr.io/${IMAGE_OWNER:-nirsaban}/pakahim-shift-manager:latest
-    container_name: takahim-app
+    container_name: pakahim-app
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -49,8 +53,8 @@ services:
       # that network (e.g. amutot-postgres) register their own "postgres"
       # service-name alias there too. That created a real DNS collision:
       # "postgres" resolved to amutot's DB instead of this project's own.
-      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@takahim-db:5432/takahim
-      REDIS_URL: redis://takahim-redis:6379
+      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@pakahim-db:5432/takahim
+      REDIS_URL: redis://pakahim-redis:6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,5 +80,15 @@ networks:
     name: miltech-association-net
 
 volumes:
-  takahim-db-data:
-  takahim-redis-data:
+  # Pinned to the exact physical volume names that already exist on the VPS
+  # (created back when the compose project name was "takahim", i.e. the
+  # deploy directory was /opt/takahim) - an unnamed volume gets prefixed by
+  # the Compose project name, which now defaults to "pakahim" post-rename.
+  # Without this pin, Compose would look for pakahim_pakahim-db-data, find
+  # nothing, and silently create a fresh EMPTY volume - which would look
+  # exactly like every real user's data had vanished. Do not remove this pin
+  # without first migrating the actual data to a volume under the new name.
+  pakahim-db-data:
+    name: takahim_takahim-db-data
+  pakahim-redis-data:
+    name: takahim_takahim-redis-data
