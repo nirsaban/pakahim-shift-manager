@@ -41,6 +41,10 @@ export async function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-user-id', payload.userId);
+  // Routes need this to tear down a session whose user no longer exists - the
+  // liveness check above proves the session is valid, not that the account
+  // still is.
+  requestHeaders.set('x-session-id', payload.sessionId);
   requestHeaders.set('x-user-role', payload.role);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }

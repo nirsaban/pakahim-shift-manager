@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import {
   Clock,
@@ -19,6 +20,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
+import { destroySession } from '@/lib/auth/session';
 import { getDefaultTenantId } from '@/lib/db/tenant';
 import {
   getTeamStatus,
@@ -153,8 +155,19 @@ export default async function DashboardPage() {
   const headersList = await headers();
   const userId = headersList.get('x-user-id') as string;
   const role = headersList.get('x-user-role') as string;
+  const sessionId = headersList.get('x-session-id');
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  // A live session can outlive its user: the account may have been deleted, or
+  // the database reset, while the session was still valid in Redis. The
+  // middleware only proves the session is live, not that the user still exists,
+  // so throwing here would 500 the dashboard for someone holding a stale cookie.
+  // Treat it as signed out and send them back to log in.
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    if (sessionId) await destroySession(sessionId);
+    redirect('/login');
+  }
+
   const displayName = formatWorkerName(user);
 
   return (
