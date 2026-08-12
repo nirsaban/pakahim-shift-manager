@@ -4,18 +4,18 @@ services:
     container_name: pakahim-db
     restart: unless-stopped
     environment:
-      # Internal Postgres user/db are still literally "takahim" (set once at
-      # initdb inside the existing volume - invisible to end users, and a
-      # rename here needs its own ALTER USER/DATABASE pass against the live
-      # volume, done separately from this container/volume rename).
-      POSTGRES_USER: takahim
+      # POSTGRES_USER/POSTGRES_DB only take effect on first initdb against an
+      # empty volume - on the existing volume they're inert documentation.
+      # The actual live rename (ALTER USER/DATABASE) is a one-time manual SQL
+      # step against the running instance, done in lockstep with this change.
+      POSTGRES_USER: pakahim
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.prod}
-      POSTGRES_DB: takahim
+      POSTGRES_DB: pakahim
     volumes:
       - pakahim-db-data:/var/lib/postgresql/data
     networks: [internal]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U takahim"]
+      test: ["CMD-SHELL", "pg_isready -U pakahim"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,7 +53,7 @@ services:
       # that network (e.g. amutot-postgres) register their own "postgres"
       # service-name alias there too. That created a real DNS collision:
       # "postgres" resolved to amutot's DB instead of this project's own.
-      DATABASE_URL: postgresql://takahim:${POSTGRES_PASSWORD}@pakahim-db:5432/takahim
+      DATABASE_URL: postgresql://pakahim:${POSTGRES_PASSWORD}@pakahim-db:5432/pakahim
       REDIS_URL: redis://pakahim-redis:6379
     depends_on:
       postgres:
