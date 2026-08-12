@@ -1,0 +1,88 @@
+name: Reset production database
+
+# DESTRUCTIVE. Empties every application table on the VPS and recreates a clean
+# starting state (one tenant, one admin, one worker, one team, plus the station
+# and train-line reference data).
+#
+# Manual only — never on push. Requires typing WIPE to confirm, so a stray click
+# in the Actions tab cannot destroy the client's data.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type WIPE to confirm destroying all production data'
+        required: true
+        default: ''
+      backup:
+        description: 'Take a pg_dump on the server first'
+        type: boolean
+        default: true
+
+concurrency:
+  group: db-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    name: Wipe and re-bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "WIPE" ]; then
+            echo "::error::Confirmation input was not WIPE — nothing was touched."
+            exit 1
+          fi
+
+      - name: Write deploy key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+      - name: Reset on server
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          TAKE_BACKUP: ${{ inputs.backup }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i $HOME/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4"
+
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" \
+            "TAKE_BACKUP='$TAKE_BACKUP' bash -s" << 'ENDSSH'
+            set -euo pipefail
+            cd /opt/pakahim
+
+            if [ "$TAKE_BACKUP" = "true" ]; then
+              FILE="backup-$(date +%Y%m%d-%H%M%S).sql"
+              echo "Backing up to /opt/pakahim/$FILE ..."
+              docker exec pakahim-db pg_dump -U pakahim pakahim > "$FILE"
+              echo "  $(du -h "$FILE" | cut -f1)"
+            else
+              echo "Skipping backup (backup input was false)."
+            fi
+
+            echo "Wiping and re-bootstrapping..."
+            docker exec pakahim-app npx tsx scripts/bootstrap-production.ts --yes
+          ENDSSH
+
+      - name: Smoke check
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 https://pakahim.miltech.cloud/login || true)
+            echo "attempt $i: /login -> $CODE"
+            [ "$CODE" = "200" ] && exit 0
+            sleep 6
+          done
+          echo "::error::/login did not return 200 after the reset"
+          exit 1
