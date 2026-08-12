@@ -108,8 +108,12 @@ async function main(): Promise<void> {
   await prisma.$disconnect();
   await import('../prisma/seed-reference');
 
-  console.log('\nLogin is by worker number. Set OTP_REDIRECT_MAP so the codes reach you:');
-  console.log(`  OTP_REDIRECT_MAP="${ADMIN_EMAIL}=nirsa11@gmail.com,${WORKER_EMAIL}=${ADMIN_EMAIL}"`);
+  console.log('\nLogin is by worker number.');
+  console.log(`  admin  ${ADMIN_WORKER_NUMBER} -> code goes to ${ADMIN_EMAIL} (its own address, no redirect needed)`);
+  console.log(`  worker ${WORKER_NUMBER} -> ${WORKER_EMAIL} cannot receive mail, so redirect it:`);
+  // Unquoted on purpose: Docker Compose `env_file` does not shell-parse, so
+  // quotes would end up inside the value.
+  console.log(`\n  OTP_REDIRECT_MAP=${WORKER_EMAIL}=${ADMIN_EMAIL}`);
 }
 
 main().catch(async (e) => {
