@@ -436,6 +436,44 @@ export const he = {
         duty_has_no_worker: 'למשמרת זו לא משויך פקח',
       },
     },
+    myShift: {
+      previous: 'המשמרת הקודמת',
+      current: 'המשמרת הנוכחית',
+      next: 'המשמרת הבאה',
+      inProgress: 'מתבצעת עכשיו',
+      details: 'פרטי המשמרת',
+      route: 'מסלול',
+      departFrom: 'יציאה מ',
+      dutyStarts: 'תחילת תפקיד',
+      dutyEnds: 'סיום תפקיד',
+      returnTo: 'חזרה ל',
+      serial: 'מס״ד',
+      trains: 'רכבות בתפקיד',
+      transitTrains: 'נסיעות סרק',
+      operations: 'פעולות',
+      noneScheduled: 'אין משמרת',
+      takesOverFrom: 'מקבל את הרכבת מ',
+      handsOverTo: 'מוסר את הרכבת ל',
+      onTrain: 'רכבת',
+      atStation: 'בתחנת',
+      atTime: 'בשעה',
+      unknownStation: 'תחנה לא ידועה',
+      noHandoff: 'לא נמצאה חפיפה',
+      viewFullCode: 'קוד הסידור המלא',
+      op: {
+        ptihat_set: 'פתיחת סט',
+        neilat_set: 'נעילת סט',
+        blima: 'בדיקת בלימה',
+        ituk: 'ניתוק',
+        nikayon: 'ניקיון',
+        kibui: 'כיבוי',
+        nikayon_kibui: 'ניקיון וכיבוי',
+        otem: 'אוטם',
+        bdika: 'בדיקת סט',
+      },
+      standby: 'כוננות',
+      taxiAt: 'מונית',
+    },
     duty: {
       openDuty: 'משמרת ללא שיבוץ',
       reinforcement: 'פקח מתגבר (משני)',
@@ -470,6 +508,11 @@ export function swapKindLabel(kind: string): string {
 
 export function transportLabel(mode: string): string {
   return (he.roster.swaps.transport as Record<string, string>)[mode] ?? mode;
+}
+
+export function opLabel(code: string | null): string {
+  if (!code) return '';
+  return (he.roster.myShift.op as Record<string, string>)[code] ?? code;
 }
 
 export function adminErrorMessage(code: string): string {

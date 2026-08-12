@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { getDefaultTenantId } from '@/lib/db/tenant';
-import { getNextShift } from '@/lib/services/shift-service';
 import {
   getTeamStatus,
   getTeamsLedBy,
@@ -31,6 +30,7 @@ import {
 } from '@/lib/services/team-service';
 import { listIncidentsForUser } from '@/lib/services/incident-service';
 import { getUploadHistory } from '@/lib/services/upload-service';
+import { getHandoffPartners, getWorkerShiftWindow } from '@/lib/services/worker-shift-service';
 import { getAnalyticsSnapshot } from '@/lib/services/analytics-service';
 import {
   getPendingRequestForShift,
@@ -60,6 +60,7 @@ import { RequestCoverageForm } from './_components/RequestCoverageForm';
 import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
 import { DirectAssignForm } from './_components/DirectAssignForm';
 import { SwapSuggestionActions } from './_components/SwapSuggestionActions';
+import { ShiftDetail, ShiftSummary } from './_components/ShiftDetail';
 import { NotificationsPrompt } from './_components/NotificationsPrompt';
 import { PushServiceStatus } from './_components/PushServiceStatus';
 
@@ -187,27 +188,54 @@ export default async function DashboardPage() {
   );
 }
 
+/**
+ * A worker's own view: their previous, current and next shift with the parsed
+ * detail behind each, and nothing about anyone else's roster.
+ *
+ * This deliberately no longer lists every member of the team. That is the
+ * scheduler's view — noise on a phone, and it put the whole roster in front of
+ * someone who needs to know when they start, where, and who they take the train
+ * from. The people who ARE relevant (their replacement, and the inspectors
+ * either side of them in the train's chain) are surfaced individually instead.
+ */
 async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
-  const [next, members, teamLead, coveringFor] = await Promise.all([
-    getNextShift(userId),
-    teamId ? getTeamStatus(teamId) : Promise.resolve([]),
+  const [window, teamLead, coveringFor] = await Promise.all([
+    getWorkerShiftWindow(userId),
     teamId ? getTeamLeadContact(teamId) : Promise.resolve(null),
     getShiftsCoveringFor(userId),
   ]);
 
-  const [pendingRequest, candidates] = next
-    ? await Promise.all([
-        getPendingRequestForShift(next.shift.id),
-        teamId ? getSameTeamCandidates(teamId, userId) : Promise.resolve([]),
-      ])
-    : [null, []];
+  // The shift in progress is the one that matters now; otherwise the next one.
+  const primaryShift = window.current ?? window.next;
+  const secondaryShift = window.current ? window.next : null;
+
+  const next = primaryShift
+    ? {
+        shift: primaryShift,
+        replacement: primaryShift.replacement
+          ? {
+              name: formatWorkerName(primaryShift.replacement),
+              city: primaryShift.replacement.city,
+              phone: primaryShift.replacement.phone,
+            }
+          : null,
+      }
+    : null;
+
+  const [pendingRequest, candidates, handoffs] = await Promise.all([
+    primaryShift ? getPendingRequestForShift(primaryShift.id) : Promise.resolve(null),
+    teamId ? getSameTeamCandidates(teamId, userId) : Promise.resolve([]),
+    primaryShift?.duty
+      ? getHandoffPartners(primaryShift.duty.id)
+      : Promise.resolve({ takesOverFrom: null, handsOverTo: null }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <Card className="brand-gradient relative overflow-hidden text-white">
         <div className="relative flex items-center gap-2 text-sm font-medium text-white/90">
           <Clock size={16} />
-          {he.dashboard.myShift}
+          {window.current ? he.roster.myShift.inProgress : he.dashboard.myShift}
         </div>
         {next ? (
           <div className="relative mt-3 flex flex-col gap-3">
@@ -289,7 +317,15 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
         </Card>
       )}
 
-      <TeamStatusList members={members} />
+      <ShiftDetail
+        duty={primaryShift?.duty ?? null}
+        takesOverFrom={handoffs.takesOverFrom}
+        handsOverTo={handoffs.handsOverTo}
+      />
+
+      {secondaryShift && <ShiftSummary title={he.roster.myShift.next} shift={secondaryShift} />}
+
+      <ShiftSummary title={he.roster.myShift.previous} shift={window.previous} tone="muted" />
 
       <ReportIncidentForm teamLeadPhone={teamLead?.phone} />
     </div>
