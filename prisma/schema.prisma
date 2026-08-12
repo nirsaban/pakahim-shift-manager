@@ -53,6 +53,10 @@ model User {
   teamLeadIncidents  Incident[]          @relation("TeamLead")
   ledTeams           Team[]              @relation("TeamLeadOf")
   incidentRecipients IncidentRecipient[]
+  replacementFor     Shift[]             @relation("ShiftReplacement")
+  coverageRequestsMade     CoverageRequest[] @relation("CoverageRequester")
+  coverageRequestsDecided  CoverageRequest[] @relation("CoverageDecider")
+  coverageProposedFor      CoverageRequest[] @relation("CoverageProposedReplacement")
 
   @@unique([tenantId, email])
   @@unique([tenantId, workerNumber])
@@ -105,7 +109,8 @@ model Shift {
   endTime           DateTime   // Full timestamp with time
   
   status            ShiftStatus @default(SCHEDULED) // SCHEDULED, STARTED, COMPLETED, CANCELLED, HOLIDAY, SICK
-  replacementId     String?    // Worker who replaces this worker
+  replacementId     String?    // Worker who replaces this worker - set by direct assignment or an approved CoverageRequest
+  replacement       User?      @relation("ShiftReplacement", fields: [replacementId], references: [id], onDelete: SetNull)
 
   region            String?    // region/team label as it appeared in the imported roster file
   notes             String?    // route, train sets, Mirs radio id, trainee, reserve-list tag - combined from import
@@ -113,10 +118,13 @@ model Shift {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
+  coverageRequests  CoverageRequest[]
+
   @@index([tenantId])
   @@index([workerId])
   @@index([teamId])
   @@index([date])
+  @@index([replacementId])
   @@map("shifts")
 }
 
@@ -217,6 +225,56 @@ enum FileStatus {
   VALIDATED
   IMPORTED
   FAILED
+}
+
+// A worker asking not to work a scheduled shift as-is, and the team lead's decision.
+// Approval is the write path that actually populates Shift.replacementId for real
+// (imported roster data has no coverage/replacement concept at all - see docs/modules/excel-import.md).
+model CoverageRequest {
+  id                     String                 @id @default(cuid())
+  tenantId               String
+
+  shiftId                String
+  shift                  Shift                  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  requestedById          String
+  requestedBy            User                   @relation("CoverageRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  reason                 CoverageReason
+  note                   String?                // required (enforced in validation) when reason = OTHER
+
+  proposedReplacementId  String?
+  proposedReplacement    User?                  @relation("CoverageProposedReplacement", fields: [proposedReplacementId], references: [id], onDelete: SetNull)
+
+  status                 CoverageRequestStatus  @default(PENDING)
+
+  decidedById            String?
+  decidedBy              User?                  @relation("CoverageDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt              DateTime?
+  decisionNote           String?
+
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([tenantId])
+  @@index([shiftId])
+  @@index([requestedById])
+  @@index([status])
+  @@map("coverage_requests")
+}
+
+enum CoverageReason {
+  SICK
+  HOLIDAY
+  SWAP
+  OTHER
+}
+
+enum CoverageRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 model DiscoveryAnswer {

@@ -8,21 +8,25 @@ export interface ReplacementInfo {
 }
 
 export async function getNextShift(workerId: string) {
+  // Include SICK/HOLIDAY too, not just SCHEDULED/STARTED: once a coverage request is
+  // approved, the worker's own shift flips to SICK/HOLIDAY (they're not working it), but
+  // they still need to see the confirmation that a replacement was actually assigned -
+  // see docs/modules/coverage-engine.md. The UI distinguishes "your shift" from
+  // "you're out, X covers" by shift.status.
   const shift = await prisma.shift.findFirst({
     where: {
       workerId,
-      status: { in: ['SCHEDULED', 'STARTED'] },
+      status: { in: ['SCHEDULED', 'STARTED', 'SICK', 'HOLIDAY'] },
       endTime: { gte: new Date() },
     },
     orderBy: { startTime: 'asc' },
+    include: { replacement: true },
   });
   if (!shift) return null;
 
-  let replacement: ReplacementInfo | null = null;
-  if (shift.replacementId) {
-    const user = await prisma.user.findUnique({ where: { id: shift.replacementId } });
-    replacement = user ? { name: formatWorkerName(user), city: user.city, phone: user.phone } : null;
-  }
+  const replacement: ReplacementInfo | null = shift.replacement
+    ? { name: formatWorkerName(shift.replacement), city: shift.replacement.city, phone: shift.replacement.phone }
+    : null;
 
   return { shift, replacement };
 }

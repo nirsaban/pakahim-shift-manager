@@ -8,6 +8,8 @@ export interface ImportResult {
   importedCount: number;
   skippedCount: number;
   errorMessage?: string;
+  needsConfirmation?: boolean;
+  activeCoverageCount?: number;
 }
 
 export async function getUploadHistory(tenantId: string, limit = 20) {
@@ -133,9 +135,39 @@ interface ImportInput {
   uploadedBy: string;
   filename: string;
   buffer: Buffer;
+  confirmClearCoverage?: boolean;
+}
+
+// A re-upload replaces (deleteMany + recreate) every shift for that date - including
+// any that already have an active coverage assignment (Shift.replacementId set, from a
+// direct assignment or an approved CoverageRequest). Silently cascading that away would
+// undo real team-lead decisions. See docs/data-model.md's open question on this.
+async function countActiveCoverageOnDate(tenantId: string, date: Date): Promise<number> {
+  return prisma.shift.count({ where: { tenantId, date, replacementId: { not: null } } });
 }
 
 export async function importShiftFile(input: ImportInput): Promise<ImportResult> {
+  const workbook = XLSX.read(input.buffer, { type: 'buffer', cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
+
+  const date = parseSheetDate(sheetName) ?? new Date(new Date().setHours(0, 0, 0, 0));
+
+  if (!input.confirmClearCoverage) {
+    const activeCoverageCount = await countActiveCoverageOnDate(input.tenantId, date);
+    if (activeCoverageCount > 0) {
+      return {
+        fileId: '',
+        status: 'FAILED',
+        importedCount: 0,
+        skippedCount: 0,
+        needsConfirmation: true,
+        activeCoverageCount,
+      };
+    }
+  }
+
   const file = await prisma.shiftFile.create({
     data: {
       tenantId: input.tenantId,
@@ -146,12 +178,6 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
     },
   });
 
-  const workbook = XLSX.read(input.buffer, { type: 'buffer', cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
-
-  const date = parseSheetDate(sheetName) ?? new Date(new Date().setHours(0, 0, 0, 0));
   const { rows, skipped } = extractRows(rawRows, 'כללי');
 
   if (rows.length === 0) {

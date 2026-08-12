@@ -16,9 +16,9 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [confirmCoverageWipe, setConfirmCoverageWipe] = useState<number | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(confirmClearCoverage: boolean) {
     if (!file) return;
     setError('');
     setMessage('');
@@ -26,12 +26,18 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (confirmClearCoverage) formData.append('confirmClearCoverage', 'true');
       const res = await fetch('/api/uploads', { method: 'POST', body: formData });
       const data = await res.json();
+      if (res.status === 409 && data.needsConfirmation) {
+        setConfirmCoverageWipe(data.activeCoverageCount);
+        return;
+      }
       if (!res.ok) {
         setError(data.error ?? he.admin.importFailed);
         return;
       }
+      setConfirmCoverageWipe(null);
       const skipNote = data.skippedCount > 0 ? ` (${data.skippedCount} שורות דולגו)` : '';
       setMessage(`${he.admin.importSuccess} - ${data.importedCount} משמרות${skipNote}`);
       setFile(null);
@@ -40,6 +46,11 @@ export default function UploadPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await submit(false);
   }
 
   return (
@@ -98,6 +109,22 @@ export default function UploadPage() {
               />
             </label>
 
+            {confirmCoverageWipe !== null && (
+              <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-warning-bg p-3.5 text-sm text-warning-fg">
+                <p className="flex items-center gap-1.5 font-medium">
+                  <TriangleAlert size={14} className="shrink-0" />
+                  {he.admin.reuploadWillClearCoverage} ({confirmCoverageWipe})
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" size="md" variant="danger" onClick={() => submit(true)}>
+                    {he.button.submit}
+                  </Button>
+                  <Button type="button" size="md" variant="secondary" onClick={() => setConfirmCoverageWipe(null)}>
+                    {he.button.cancel}
+                  </Button>
+                </div>
+              </div>
+            )}
             {error && (
               <p className="flex items-center gap-1.5 text-sm text-danger-fg">
                 <TriangleAlert size={14} className="shrink-0" />

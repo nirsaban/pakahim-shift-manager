@@ -27,6 +27,83 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
   });
 }
 
+const REASON_LABELS: Record<string, string> = {
+  SICK: 'מחלה',
+  HOLIDAY: 'חופשה',
+  SWAP: 'החלפה',
+  OTHER: 'אחר',
+};
+
+function formatShiftWindow(date: Date, startTime: Date, endTime: Date): string {
+  const d = date.toLocaleDateString('he-IL');
+  const s = startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const e = endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${d}, ${s}-${e}`;
+}
+
+interface CoverageRequestEmailInput {
+  requesterName: string;
+  shiftDate: Date;
+  startTime: Date;
+  endTime: Date;
+  reason: string;
+}
+
+export async function sendCoverageRequestEmail(to: string, input: CoverageRequestEmailInput): Promise<void> {
+  const window = formatShiftWindow(input.shiftDate, input.startTime, input.endTime);
+  const reasonLabel = REASON_LABELS[input.reason] ?? input.reason;
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `בקשת כיסוי משמרת: ${input.requesterName}`,
+    text: `${input.requesterName} ביקש/ה כיסוי למשמרת ${window}.\nסיבה: ${reasonLabel}\n\nהיכנס/י לאפליקציה כדי לאשר או לדחות.`,
+    html: `<div dir="rtl" style="font-family: sans-serif; font-size: 16px;">
+      <p><strong>${input.requesterName}</strong> ביקש/ה כיסוי למשמרת:</p>
+      <p>${window}</p>
+      <p>סיבה: ${reasonLabel}</p>
+      <p>היכנס/י לאפליקציה כדי לאשר או לדחות את הבקשה.</p>
+    </div>`,
+  });
+}
+
+interface CoverageDecisionEmailInput {
+  approved: boolean;
+  assignedAsReplacement?: boolean;
+  shiftDate: Date;
+  startTime: Date;
+  endTime: Date;
+  replacementName?: string;
+  decisionNote?: string;
+}
+
+export async function sendCoverageDecisionEmail(to: string, input: CoverageDecisionEmailInput): Promise<void> {
+  const window = formatShiftWindow(input.shiftDate, input.startTime, input.endTime);
+  const note = input.decisionNote ? `\n\nהערה: ${input.decisionNote}` : '';
+
+  let subject: string;
+  let bodyText: string;
+  if (input.assignedAsReplacement) {
+    subject = `שובצת לכסות משמרת: ${window}`;
+    bodyText = `שובצת לכסות משמרת ${window}.${note}`;
+  } else if (input.approved) {
+    subject = `בקשת הכיסוי שלך אושרה`;
+    bodyText = `בקשת הכיסוי שלך למשמרת ${window} אושרה.${input.replacementName ? `\n${input.replacementName} יכסה/תכסה את המשמרת.` : ''}${note}`;
+  } else {
+    subject = `בקשת הכיסוי שלך נדחתה`;
+    bodyText = `בקשת הכיסוי שלך למשמרת ${window} נדחתה.${note}`;
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject,
+    text: bodyText,
+    html: `<div dir="rtl" style="font-family: sans-serif; font-size: 16px;">
+      <p>${bodyText.replace(/\n/g, '<br/>')}</p>
+    </div>`,
+  });
+}
+
 interface IncidentAlertInput {
   title: string;
   description: string;

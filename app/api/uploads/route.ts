@@ -20,14 +20,22 @@ export async function POST(request: NextRequest) {
 
   const tenantId = await getDefaultTenantId();
   const buffer = Buffer.from(await file.arrayBuffer());
+  const confirmClearCoverage = formData.get('confirmClearCoverage') === 'true';
 
   const result = await importShiftFile({
     tenantId,
     uploadedBy: userId,
     filename: file.name,
     buffer,
+    confirmClearCoverage,
   });
 
+  if (result.needsConfirmation) {
+    return NextResponse.json(
+      { needsConfirmation: true, activeCoverageCount: result.activeCoverageCount },
+      { status: 409 },
+    );
+  }
   if (result.status === 'FAILED') {
     return NextResponse.json({ error: result.errorMessage }, { status: 422 });
   }

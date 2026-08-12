@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import type { ReactNode } from 'react';
 import {
   Clock,
   Users,
@@ -10,6 +11,11 @@ import {
   MapPin,
   Sparkles,
   Wrench,
+  ShieldCheck,
+  CalendarOff,
+  UserCog,
+  BarChart3,
+  UserCheck,
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { getDefaultTenantId } from '@/lib/db/tenant';
@@ -24,6 +30,13 @@ import {
 } from '@/lib/services/team-service';
 import { listIncidentsForUser } from '@/lib/services/incident-service';
 import { getUploadHistory } from '@/lib/services/upload-service';
+import { getAnalyticsSnapshot } from '@/lib/services/analytics-service';
+import {
+  getPendingRequestForShift,
+  getSameTeamCandidates,
+  getShiftsCoveringFor,
+  listPendingCoverageRequests,
+} from '@/lib/services/coverage-service';
 import { formatWorkerName } from '@/lib/utils/display-name';
 import { toWhatsAppLink } from '@/lib/utils/whatsapp';
 import { he } from '@/lib/he';
@@ -37,6 +50,32 @@ import { Button } from '../_components/ui/Button';
 import { LogoutButton } from './_components/LogoutButton';
 import { ReportIncidentForm } from './_components/ReportIncidentForm';
 import { IncidentActions } from './_components/IncidentActions';
+import { RequestCoverageForm } from './_components/RequestCoverageForm';
+import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
+import { DirectAssignForm } from './_components/DirectAssignForm';
+
+function StatTile({
+  label,
+  sublabel,
+  value,
+  icon,
+}: {
+  label: string;
+  sublabel?: string;
+  value: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-surface-sunken p-3.5">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
+        {icon}
+        {label}
+      </div>
+      <p className="text-xl font-bold text-foreground">{value}</p>
+      {sublabel && <p className="text-xs text-muted">{sublabel}</p>}
+    </div>
+  );
+}
 
 function TeamStatusList({ members }: { members: TeamMemberStatus[] }) {
   return (
@@ -132,11 +171,19 @@ export default async function DashboardPage() {
 }
 
 async function TakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
-  const [next, members, teamLead] = await Promise.all([
+  const [next, members, teamLead, coveringFor] = await Promise.all([
     getNextShift(userId),
     teamId ? getTeamStatus(teamId) : Promise.resolve([]),
     teamId ? getTeamLeadContact(teamId) : Promise.resolve(null),
+    getShiftsCoveringFor(userId),
   ]);
+
+  const [pendingRequest, candidates] = next
+    ? await Promise.all([
+        getPendingRequestForShift(next.shift.id),
+        teamId ? getSameTeamCandidates(teamId, userId) : Promise.resolve([]),
+      ])
+    : [null, []];
 
   return (
     <div className="flex flex-col gap-6">
@@ -147,6 +194,11 @@ async function TakahimDashboard({ userId, teamId }: { userId: string; teamId: st
         </div>
         {next ? (
           <div className="relative mt-3 flex flex-col gap-3">
+            {(next.shift.status === 'SICK' || next.shift.status === 'HOLIDAY') && (
+              <Badge tone="warning" className="w-fit">
+                {next.shift.status === 'SICK' ? he.dashboard.onSickLeave : he.dashboard.onHoliday}
+              </Badge>
+            )}
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tabular-nums">
                 {next.shift.startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
@@ -185,11 +237,40 @@ async function TakahimDashboard({ userId, teamId }: { userId: string; teamId: st
                 })()}
               </div>
             )}
+            {next.shift.status !== 'SICK' && next.shift.status !== 'HOLIDAY' && (
+              <div className="relative">
+                <RequestCoverageForm
+                  shiftId={next.shift.id}
+                  candidates={candidates}
+                  pending={pendingRequest ? { id: pendingRequest.id, reason: pendingRequest.reason } : null}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <p className="relative mt-3 text-sm text-white/75">{he.dashboard.noUpcomingShifts}</p>
         )}
       </Card>
+
+      {coveringFor.length > 0 && (
+        <Card>
+          <CardHeader title={he.dashboard.coveringForTitle} icon={<ShieldCheck size={16} />} />
+          <ul className="flex flex-col">
+            {coveringFor.map((s) => (
+              <li key={s.shiftId} className="flex flex-col gap-1 border-t border-border py-3 first:border-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground">
+                    {he.dashboard.coveringForSubtitle} {s.workerName}
+                  </span>
+                </div>
+                <span className="text-sm text-muted">
+                  {s.startTime.toLocaleString('he-IL')} - {s.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <TeamStatusList members={members} />
 
@@ -201,15 +282,64 @@ async function TakahimDashboard({ userId, teamId }: { userId: string; teamId: st
 async function TeamLeadDashboard({ userId }: { userId: string }) {
   const teams = await getTeamsLedBy(userId);
   const teamIds = teams.map((t) => t.id);
-  const [roster, members, incidents] = await Promise.all([
+  const [roster, members, incidents, pendingRequests] = await Promise.all([
     teamIds.length ? getUpcomingRoster(teamIds) : Promise.resolve([]),
     teamIds.length ? getTeamStatus(teamIds) : Promise.resolve([]),
     listIncidentsForUser(userId),
+    teamIds.length ? listPendingCoverageRequests(teamIds) : Promise.resolve([]),
   ]);
+
+  const candidatesByTeam = Object.fromEntries(
+    await Promise.all(teamIds.map(async (id) => [id, await getSameTeamCandidates(id, userId)] as const)),
+  );
+  const shiftTeamById = Object.fromEntries(roster.map((r) => [r.shiftId, r.teamId]));
 
   return (
     <div className="flex flex-col gap-6">
       <RosterList entries={roster} showTeam={teams.length > 1} />
+
+      <Card>
+        <CardHeader title={he.coverage.approvalsTitle} icon={<CalendarOff size={16} />} />
+        <ul className="flex flex-col gap-3">
+          {pendingRequests.map((req) => (
+            <li key={req.id} className="flex flex-col gap-2 border-t border-border py-3 first:border-0 first:pt-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-foreground">
+                  {he.coverage.requestedBy} {req.requesterName}
+                </span>
+                <Badge tone="warning">{reasonLabel(req.reason)}</Badge>
+              </div>
+              <span className="text-sm text-muted">
+                {req.startTime.toLocaleString('he-IL')} -{' '}
+                {req.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              {req.note && <p className="text-sm text-muted">{req.note}</p>}
+              <CoverageDecisionActions
+                requestId={req.id}
+                proposedReplacementId={req.proposedReplacementId}
+                candidates={candidatesByTeam[shiftTeamById[req.shiftId]] ?? []}
+              />
+            </li>
+          ))}
+        </ul>
+        {pendingRequests.length === 0 && (
+          <EmptyState icon={<CalendarOff size={22} />}>{he.coverage.noPendingRequests}</EmptyState>
+        )}
+      </Card>
+
+      {roster.length > 0 && (
+        <Card>
+          <CardHeader title={he.coverage.directAssignTitle} icon={<UserCog size={16} />} />
+          <DirectAssignForm
+            shifts={roster.map((r) => ({
+              id: r.shiftId,
+              teamId: r.teamId,
+              label: `${r.workerName} · ${r.startTime.toLocaleString('he-IL')}`,
+            }))}
+            candidatesByTeam={candidatesByTeam}
+          />
+        </Card>
+      )}
 
       <TeamStatusList members={members} />
 
@@ -271,18 +401,63 @@ async function MaintenanceDashboard({ userId }: { userId: string }) {
 
 async function AdminDashboard() {
   const tenantId = await getDefaultTenantId();
-  const uploads = await getUploadHistory(tenantId);
+  const [uploads, analytics] = await Promise.all([getUploadHistory(tenantId), getAnalyticsSnapshot(tenantId)]);
 
   return (
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader title={he.admin.adminPanel} icon={<UploadCloud size={16} />} />
-        <Link href="/admin/upload">
-          <Button size="lg">
-            <UploadCloud size={17} />
-            {he.admin.uploadSchedule}
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/upload">
+            <Button size="lg">
+              <UploadCloud size={17} />
+              {he.admin.uploadSchedule}
+            </Button>
+          </Link>
+          <Link href="/admin/manage">
+            <Button size="lg" variant="secondary">
+              <Users size={17} />
+              {he.admin.manageTeams}
+            </Button>
+          </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title={he.admin.analyticsTitle} icon={<BarChart3 size={16} />} />
+        <div className="grid grid-cols-2 gap-3">
+          <StatTile
+            label={he.admin.coverageRate}
+            sublabel={he.admin.coverageRateSubtitle}
+            value={
+              analytics.coverageRatePercent === null
+                ? '—'
+                : `${analytics.coverageRatePercent}% (${analytics.coveredShiftCount}/${analytics.needsCoverageShiftCount})`
+            }
+            icon={<ShieldCheck size={16} />}
+          />
+          <StatTile
+            label={he.admin.registrationCompletion}
+            sublabel={he.admin.registrationCompletionSubtitle}
+            value={
+              analytics.registrationCompletionPercent === null
+                ? '—'
+                : `${analytics.registrationCompletionPercent}% (${analytics.registeredWorkerCount}/${analytics.totalWorkerCount})`
+            }
+            icon={<UserCheck size={16} />}
+          />
+          <StatTile
+            label={he.admin.pendingCoverageRequestsTenantWide}
+            value={String(analytics.pendingCoverageRequestCount)}
+            icon={<CalendarOff size={16} />}
+          />
+          <StatTile
+            label={he.admin.incidentSummary}
+            value={`${analytics.incidentsByStatus.open} / ${analytics.incidentsByStatus.acknowledged} / ${analytics.incidentsByStatus.resolved}`}
+            sublabel="פתוח / התקבל / סגור"
+            icon={<Sparkles size={16} />}
+          />
+        </div>
       </Card>
 
       <Card>
@@ -310,6 +485,19 @@ async function AdminDashboard() {
       </Card>
     </div>
   );
+}
+
+function reasonLabel(reason: string): string {
+  switch (reason) {
+    case 'SICK':
+      return he.coverage.reasonSick;
+    case 'HOLIDAY':
+      return he.coverage.reasonHoliday;
+    case 'SWAP':
+      return he.coverage.reasonSwap;
+    default:
+      return he.coverage.reasonOther;
+  }
 }
 
 function uploadStatusLabel(status: string): string {

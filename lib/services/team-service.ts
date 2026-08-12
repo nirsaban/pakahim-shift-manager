@@ -41,6 +41,7 @@ export async function getTeamStatus(teamId: string | string[]): Promise<TeamMemb
 
 export interface RosterEntry {
   shiftId: string;
+  teamId: string;
   workerName: string;
   workerNumber: string | null;
   city: string | null;
@@ -60,6 +61,7 @@ export async function getUpcomingRoster(teamId: string | string[], limit = 10): 
 
   return shifts.map((shift) => ({
     shiftId: shift.id,
+    teamId: shift.teamId,
     workerName: formatWorkerName(shift.worker),
     workerNumber: shift.worker.workerNumber,
     city: shift.worker.city,
@@ -90,6 +92,7 @@ export async function getUpcomingRosterForTenant(tenantId: string, limit = 20): 
 
   return shifts.map((shift) => ({
     shiftId: shift.id,
+    teamId: shift.teamId,
     workerName: formatWorkerName(shift.worker),
     workerNumber: shift.worker.workerNumber,
     city: shift.worker.city,

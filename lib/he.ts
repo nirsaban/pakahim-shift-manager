@@ -81,6 +81,11 @@ export const he = {
     contactViaWhatsapp: 'צור קשר בוואטסאפ',
     reportIncident: 'דווח על תקרית',
     noUpcomingShifts: 'אין משמרות קרובות',
+    requestCoverage: 'אני לא יכול/ה להגיע למשמרת',
+    coverageRequestPending: 'ממתין לאישור ראש הצוות',
+    cancelCoverageRequest: 'בטל בקשה',
+    coveringForTitle: 'אתה מכסה משמרות',
+    coveringForSubtitle: 'עבור',
   },
 
   // Incidents
@@ -118,6 +123,57 @@ export const he = {
     resolveIncident: 'סגור תקרית',
     contactWorker: 'צור קשר',
     noOpenIncidents: 'אין תקריות פתוחות',
+    pendingCoverageRequests: 'בקשות כיסוי ממתינות',
+    noPendingCoverageRequests: 'אין בקשות כיסוי ממתינות',
+    viewCoverageApprovals: 'לניהול בקשות כיסוי',
+  },
+
+  // Coverage requests (worker asks not to work a shift; team lead decides)
+  coverage: {
+    requestTitle: 'בקשת כיסוי משמרת',
+    reason: 'סיבה',
+    reasonSick: 'מחלה',
+    reasonHoliday: 'חופשה',
+    reasonSwap: 'החלפה',
+    reasonOther: 'אחר',
+    note: 'הערה',
+    noteRequired: 'נדרשת הערה עבור סיבה אחר',
+    proposeReplacement: 'הצע מי יכסה (אופציונלי)',
+    proposeReplacementPlaceholder: 'בחר עמית מהצוות',
+    noProposal: 'לא נבחר - ראש הצוות יבחר',
+    submitRequest: 'שלח בקשה',
+    requestSent: 'הבקשה נשלחה לראש הצוות',
+    requestCancelled: 'הבקשה בוטלה',
+    shiftTooCloseToRequest: 'לא ניתן לבקש כיסוי למשמרת שכבר התחילה',
+    approvalsTitle: 'בקשות כיסוי',
+    approve: 'אשר',
+    reject: 'דחה',
+    approveWithReplacement: 'אשר עם',
+    chooseReplacement: 'בחר מי יכסה',
+    decisionNote: 'הערה (אופציונלי)',
+    requestApproved: 'הבקשה אושרה',
+    requestRejected: 'הבקשה נדחתה',
+    directAssignTitle: 'שיבוץ כיסוי ישיר',
+    directAssignSubtitle: 'בחר משמרת וקבע מי יכסה אותה, ללא צורך בבקשה',
+    assign: 'שבץ',
+    clearReplacement: 'הסר כיסוי',
+    replacementAssigned: 'הכיסוי עודכן',
+    requestedBy: 'התבקש על ידי',
+    noPendingRequests: 'אין בקשות כיסוי ממתינות',
+    errors: {
+      shift_not_found: 'המשמרת לא נמצאה',
+      not_your_shift: 'ניתן לבקש כיסוי רק למשמרת שלך',
+      shift_already_started: 'לא ניתן לבקש כיסוי למשמרת שכבר התחילה',
+      request_already_pending: 'כבר קיימת בקשת כיסוי ממתינה למשמרת זו',
+      invalid_proposed_replacement: 'העמית שהוצע אינו זמין להצעה זו',
+      not_authorized: 'אין הרשאה לבצע פעולה זו',
+      request_not_pending: 'הבקשה כבר טופלה',
+      not_your_request: 'ניתן לבטל רק בקשה שלך',
+      replacement_required: 'יש לבחור מי יכסה את המשמרת',
+      invalid_replacement: 'לא ניתן לשבץ את המשתמש שנבחר ככיסוי',
+      cannot_replace_self: 'לא ניתן לשבץ עובד לכסות את המשמרת של עצמו',
+      replacement_has_overlapping_shift: 'לעובד שנבחר יש כבר משמרת חופפת בזמן זה',
+    },
   },
 
   // Maintenance (מחלקת אחזקה)
@@ -145,6 +201,33 @@ export const he = {
     teamLead: 'מנהל הצוות',
     uploadHistory: 'היסטוריית העלאות',
     noUploadsYet: 'עדיין לא הועלו קבצים',
+    reuploadWillClearCoverage: 'העלאה מחדש לתאריך זה תמחק שיבוצי כיסוי פעילים. להמשיך?',
+    editTeam: 'ערוך צוות',
+    deleteTeam: 'מחק צוות',
+    editWorker: 'ערוך עובד',
+    role: 'תפקיד',
+    team: 'צוות',
+    noEmailYet: 'טרם נרשם',
+    searchWorkers: 'חפש עובד לפי שם או מספר עובד',
+    filterByRole: 'סנן לפי תפקיד',
+    filterByTeam: 'סנן לפי צוות',
+    cannotChangeRoleHasTeams: 'לא ניתן לשנות תפקיד - העובד עדיין מוביל צוות/ים. שבץ מוביל אחר קודם',
+    analyticsTitle: 'נתונים כלליים',
+    coverageRate: 'אחוז כיסוי משמרות',
+    coverageRateSubtitle: 'משמרות מחלה/חופשה עם כיסוי משובץ',
+    incidentSummary: 'סיכום תקריות',
+    registrationCompletion: 'השלמת רישום עובדים',
+    registrationCompletionSubtitle: 'עובדים עם פרטי התחברות',
+    pendingCoverageRequestsTenantWide: 'בקשות כיסוי ממתינות (כלל הארגון)',
+    errors: {
+      invalid_team_lead: 'יש לבחור מוביל צוות תקין',
+      lead_must_be_team_lead_role: 'רק משתמש עם תפקיד "ראש צוות" יכול להוביל צוות',
+      team_not_found: 'הצוות לא נמצא',
+      worker_number_taken: 'מספר עובד זה כבר קיים במערכת',
+      invalid_team: 'הצוות שנבחר אינו תקין',
+      worker_not_found: 'העובד לא נמצא',
+      still_leads_teams: 'לא ניתן לשנות תפקיד - העובד עדיין מוביל צוות/ים. שבץ מוביל אחר קודם',
+    },
   },
 
   // Errors
@@ -172,6 +255,14 @@ export const he = {
     loggedOut: 'התנתקת בהצלחה',
   },
 };
+
+export function coverageErrorMessage(code: string): string {
+  return (he.coverage.errors as Record<string, string>)[code] ?? he.error.serverError;
+}
+
+export function adminErrorMessage(code: string): string {
+  return (he.admin.errors as Record<string, string>)[code] ?? he.error.serverError;
+}
 
 export function t(key: string, defaultValue: string = ''): string {
   const parts = key.split('.');
