@@ -4,6 +4,7 @@ import { getDefaultTenantId } from '@/lib/db/tenant';
 import { workerNumberSchema } from '@/lib/validation/auth';
 import { requestOtp } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/mail/mailer';
+import { resolveOtpRecipient } from '@/lib/auth/otp-routing';
 import { he } from '@/lib/he';
 
 export async function POST(request: NextRequest) {
@@ -39,7 +40,11 @@ export async function POST(request: NextRequest) {
 
   // Best-effort: the code is already stored (and the dev fallback code always verifies
   // outside production) - a flaky mail provider shouldn't 500 the whole login attempt.
-  await sendOtpEmail(user.email, result.code).catch((err) => {
+  //
+  // Delivery may be redirected via OTP_REDIRECT_MAP; the code itself is still
+  // issued and verified against the account's own email, so this only changes
+  // which inbox it arrives in.
+  await sendOtpEmail(resolveOtpRecipient(user.email), result.code).catch((err) => {
     console.error('Failed to send OTP email:', err);
   });
 

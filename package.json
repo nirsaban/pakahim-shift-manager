@@ -18,7 +18,8 @@
     "db:studio": "prisma studio",
     "roster:import": "tsx scripts/import-roster.ts",
     "roster:backfill-homes": "tsx scripts/backfill-home-stations.ts",
-    "push:test": "tsx scripts/send-test-push.ts"
+    "push:test": "tsx scripts/send-test-push.ts",
+    "bootstrap:production": "tsx scripts/bootstrap-production.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
