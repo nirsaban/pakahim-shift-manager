@@ -9,6 +9,12 @@ import { Button } from '../../_components/ui/Button';
 import { TeamsPanel } from './_components/TeamsPanel';
 import { WorkersPanel } from './_components/WorkersPanel';
 
+// Live authenticated admin data (teams/workers), never static - without this Next.js
+// tries to prerender it at build time and fails against the build stage's placeholder
+// DATABASE_URL (see Dockerfile). /dashboard avoids this implicitly via headers(); this
+// page has no dynamic API call of its own, so it needs the directive explicitly.
+export const dynamic = 'force-dynamic';
+
 export default async function ManagePage() {
   const tenantId = await getDefaultTenantId();
   const [teams, workers] = await Promise.all([listTeams(tenantId), listWorkers(tenantId, {})]);
