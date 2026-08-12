@@ -161,7 +161,7 @@ export default async function DashboardPage() {
       </PageHeader>
 
       <div className="flex flex-col gap-6 pt-4">
-        {role === 'TAKAHIM' && <TakahimDashboard userId={userId} teamId={user.teamId} />}
+        {role === 'PAKAHIM' && <PakahimDashboard userId={userId} teamId={user.teamId} />}
         {role === 'TEAM_LEAD' && <TeamLeadDashboard userId={userId} />}
         {role === 'MAINTENANCE' && <MaintenanceDashboard userId={userId} />}
         {(role === 'SHIBUTZ' || role === 'ADMIN' || role === 'SUPER_ADMIN') && <AdminDashboard />}
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
   );
 }
 
-async function TakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
+async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
   const [next, members, teamLead, coveringFor] = await Promise.all([
     getNextShift(userId),
     teamId ? getTeamStatus(teamId) : Promise.resolve([]),

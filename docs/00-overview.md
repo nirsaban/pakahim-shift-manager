@@ -1,4 +1,4 @@
-# Overview — Takahim Shift Manager redesign docs
+# Overview — Pakahim Shift Manager redesign docs
 
 One markdown file per screen and per cross-cutting module, written 2026-08-12 after
 discovering that `SPEC.md` §3.2's claim — "who replaces them / who they're replacing:
@@ -25,7 +25,7 @@ This doc set exists to design that workflow for real, and to give every other sc
 
 ## Roles (unchanged — see `modules/roles-permissions.md` for full detail)
 
-`TAKAHIM` (פקח) · `TEAM_LEAD` (ראש צוות) · `SHIBUTZ` (משבץ) · `ADMIN` · `SUPER_ADMIN` ·
+`PAKAHIM` (פקח) · `TEAM_LEAD` (ראש צוות) · `SHIBUTZ` (משבץ) · `ADMIN` · `SUPER_ADMIN` ·
 `MAINTENANCE` (מחלקת אחזקה)
 
 ## Doc index

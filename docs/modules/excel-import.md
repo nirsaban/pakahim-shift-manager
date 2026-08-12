@@ -39,9 +39,9 @@ importShiftFile(file, tenantId, uploadedBy)
      tenant's first TEAM_LEAD (the file has no per-region lead — see roles-permissions.md
      for the multi-team-lead consequence of this).
   4. Per worker number seen: upsert a User.
-     - New worker number → create with role TAKAHIM, firstName = the full name from the
+     - New worker number → create with role PAKAHIM, firstName = the full name from the
        sheet, no email/phone/city (pending self-registration — see login-onboarding.md).
-     - Existing TAKAHIM worker → keep their teamId in sync with the roster; never
+     - Existing PAKAHIM worker → keep their teamId in sync with the roster; never
        overwrite name/email/city/phone (those are self-reported once registered, the
        roster shouldn't clobber them).
   5. Combine route + train-set codes + Mirs id + trainee name (if any) + reserve-list tag

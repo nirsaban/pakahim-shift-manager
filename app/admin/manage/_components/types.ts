@@ -19,4 +19,4 @@ export interface Worker {
   hasRegistered: boolean;
 }
 
-export const ROLES = ['TAKAHIM', 'TEAM_LEAD', 'SHIBUTZ', 'MAINTENANCE', 'ADMIN', 'SUPER_ADMIN'];
+export const ROLES = ['PAKAHIM', 'TEAM_LEAD', 'SHIBUTZ', 'MAINTENANCE', 'ADMIN', 'SUPER_ADMIN'];

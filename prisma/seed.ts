@@ -30,7 +30,7 @@ async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: 'default' },
     update: {},
-    create: { name: 'Takahim Demo', slug: 'default' },
+    create: { name: 'Pakahim Demo', slug: 'default' },
   });
 
   const teamLead = await prisma.user.upsert({
@@ -116,7 +116,7 @@ async function main() {
         city: w.city,
         phone: w.phone,
         workerNumber: w.workerNumber,
-        role: 'TAKAHIM',
+        role: 'PAKAHIM',
         teamId: team.id,
       },
     });

@@ -32,7 +32,7 @@ blocks/fails the report on a mail-send failure — see `notifications.md`).
 
 ## Permissions
 
-`TAKAHIM` (the reporter). Recipients (team lead, and `MAINTENANCE`/`ADMIN` users
+`PAKAHIM` (the reporter). Recipients (team lead, and `MAINTENANCE`/`ADMIN` users
 depending on route) act on it via `team-lead-dashboard.md` / `maintenance-dashboard.md`.
 
 ## Relationship to coverage requests `NEW`

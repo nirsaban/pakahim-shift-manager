@@ -1,4 +1,4 @@
-# Design system — Takahim Shift Manager
+# Design system — Pakahim Shift Manager
 
 Goal: this should read as a real, designed 2026 product — calm, high-contrast-where-it-
 matters, generous whitespace, soft depth instead of hard borders — not a wireframe with

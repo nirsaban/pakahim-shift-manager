@@ -15,7 +15,7 @@ full write path this screen triggers.
 
 Creates a `CoverageRequest` against the worker's own next `Shift`. Reads the worker's
 `Team` roster (to populate the optional "suggest who covers" picker with same-team
-`TAKAHIM` users only — per the open question in `data-model.md` about whether proposals
+`PAKAHIM` users only — per the open question in `data-model.md` about whether proposals
 must be same-team). See `data-model.md`, `coverage-engine.md`.
 
 ## States
@@ -43,7 +43,7 @@ must be same-team). See `data-model.md`, `coverage-engine.md`.
 
 ## Permissions
 
-`TAKAHIM`, and only for their own shifts (`requestedById` is always the acting user,
+`PAKAHIM`, and only for their own shifts (`requestedById` is always the acting user,
 never settable to someone else — enforced server-side, not just hidden client-side).
 
 ## Open questions

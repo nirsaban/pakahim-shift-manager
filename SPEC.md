@@ -1,4 +1,4 @@
-# Takahim Shift Manager — Product Spec
+# Pakahim Shift Manager — Product Spec
 
 Grounded in the client discovery interview (2026-08-10, 12 questions, `DiscoveryAnswer` table / `/discovery.html`).
 This is the working spec for the current build pass. Where it resolves a previously
@@ -21,7 +21,7 @@ not just a pilot group.
 - **Org:** Israel Railways only. Single tenant. Not building multi-tenant UI for this pass.
 - **Roles in scope:** פקחים (inspectors) only. Drivers/other shift roles are future.
 - **Roles in the system:**
-  - `TAKAHIM` (פקח) — sees their own shift, who replaces them, team status, reports incidents.
+  - `PAKAHIM` (פקח) — sees their own shift, who replaces them, team status, reports incidents.
   - `TEAM_LEAD` (ראש צוות) — sees team roster/status, receives and resolves incident reports,
     is the first stop for sick/leave requests.
   - `SHIBUTZ` — publishes the weekly/daily schedule.
@@ -30,11 +30,14 @@ not just a pilot group.
   - `MAINTENANCE` (מחלקת אחזקה) — receives and resolves train-equipment incident reports
     (q7). New this pass — see §3.4.
 
-Note on naming: the client-confirmed term is **פקח (מנהל נסיעה)**, not "Takahim." All
-user-facing copy already uses פקח via `lib/he.ts`. The `TAKAHIM` enum value and internal
-identifiers (`TakahimDashboard`, package name) are not user-facing and are left as-is for
-this pass — renaming an enum stored in the database is a real migration, not a copy change,
-and isn't worth the risk without a dedicated pass. Flagged, not silently dropped.
+Note on naming: the client-confirmed term is **פקח (מנהל נסיעה)**. All user-facing copy
+already uses פקח via `lib/he.ts`. The `PAKAHIM` enum value and internal identifiers
+(`PakahimDashboard`, package name) — previously "Takahim" — were renamed to "Pakahim"
+(2026-08-12, see `CLAUDE.md`'s resolved terminology note) as the chosen English
+identifier, distinct from and secondary to the Hebrew user-facing term above. That rename
+covered every layer — enum, code, package/repo name, GHCR image, deploy path, container
+names, and the live domain — using a Postgres `RENAME VALUE` migration for the enum so no
+existing row's data was touched.
 
 ## 3. Core flows (this build)
 
@@ -95,7 +98,7 @@ own state).
 |---|----------|---------------------------|-----|
 | 1 | Notification channel: client wants WhatsApp + in-app push; existing build assumes FCM/email only | Keep in-app + email as the system of record (delivery guarantee, no bot infra). Use `wa.me` deep links — already implemented in `lib/utils/whatsapp.ts` for "contact my replacement" — as the WhatsApp touchpoint: one tap opens a pre-filled WhatsApp chat, no Baileys/Business API needed. Extend the same pattern to "notify team lead" on incident report. | Full WhatsApp bot integration (Baileys/Business API) was already ruled out for a same-day build; deep links get 80% of the client's actual want (open WhatsApp with the right person) at near-zero infra cost. Full bot integration stays a real roadmap item, not something to fake. |
 | 2 | "פטיש" role, unclear if distinct from ראש צוות | Treated as the same person/role as `TEAM_LEAD` for this build — the client's own phrasing ("לראש צוות לשבץ ופטיש... מי שמאשר... זה הפטיש") reads as one approval chain, not three separate roles. **Not silently finalized** — flagged in this doc and in copy comments so a real answer from the client can override it without a data model change (approval is already gated on `TEAM_LEAD`, not on a new enum value). | Avoids inventing a role/table for a term whose scope is still ambiguous, while not blocking the leave/sick approval UI on getting that answer first. |
-| 3 | Terminology ("Takahim" vs פקח) | User-facing copy: already פקח everywhere (verified, no hardcoded "Takahim" strings in UI). Internal identifiers: left alone this pass. | Renaming a Prisma enum value touches existing rows; a real rename pass needs its own migration + verification, not bundled into a visual redesign. |
+| 3 | Terminology ("Takahim" vs פקח) | ~~Resolved 2026-08-12~~: user-facing copy already used פקח everywhere; internal identifiers renamed "Takahim" → "Pakahim" across every layer (see note above §1). | A Prisma enum value rename touches existing rows, so it got its own dedicated migration + verification pass (`ALTER TYPE ... RENAME VALUE`, zero data loss) rather than being bundled into an unrelated change. |
 | 4 | Auto-sync of daily Excel | Deferred, documented above. Manual upload preview/confirm UI kept, designed to extend cleanly. | Needs an infra decision (poll vs. watched folder) that has nothing to do with this pass's actual ask (make the app look and feel real). |
 
 ## 5. What this pass actually delivers

@@ -43,7 +43,7 @@ onboards.
 | `firstName`, `lastName` | `String?` | For roster-imported workers, the full name lands in `firstName` until the worker self-registers and splits it (see `login-onboarding.md`). |
 | `city` | `String?` | |
 | `workerNumber` | `String?` | The real-world identifier (`מספר עובד`). `@@unique([tenantId, workerNumber])`. This, not email, is what a worker types to log in. |
-| `role` | `UserRole` | `SUPER_ADMIN \| ADMIN \| SHIBUTZ \| TEAM_LEAD \| TAKAHIM \| MAINTENANCE` |
+| `role` | `UserRole` | `SUPER_ADMIN \| ADMIN \| SHIBUTZ \| TEAM_LEAD \| PAKAHIM \| MAINTENANCE` |
 | `teamId` | `String?` | FK → `Team`. Null for `ADMIN`/`SHIBUTZ`. |
 | `fcmToken` | `String?` | For push notifications (not currently sent from any flow — see `notifications.md`). |
 | `createdAt`, `updatedAt` | `DateTime` | |

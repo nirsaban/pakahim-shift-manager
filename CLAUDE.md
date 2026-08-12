@@ -1,11 +1,11 @@
-# Takahim Shift Manager
+# Pakahim Shift Manager
 
-**Takahim Shift Manager** — A PWA for Israeli train workers to manage shift schedules, see next shifts, track team status, and report incidents in real-time.
+**Pakahim Shift Manager** — A PWA for Israeli train workers to manage shift schedules, see next shifts, track team status, and report incidents in real-time.
 
 **Brand:** Genericflow Brain  
 **Product Type:** PWA Web App  
 **Language:** Hebrew (RTL only)  
-**Target Users:** Train operators (Takahim), Shift schedulers (Shibutz), Team leads
+**Target Users:** Train operators (Pakahim), Shift schedulers (Shibutz), Team leads
 
 ## Client Discovery Interview (2026-08-10)
 
@@ -50,7 +50,7 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 ### ⚠ Open conflicts to resolve before building further
 1. **Notification channel** — client wants WhatsApp + in-app push; Non-Negotiable Convention #6 below and the earlier scope decision both assume FCM/email only. Needs an explicit decision (WhatsApp likely means Baileys or a business API, which was previously ruled out as too heavy for a same-day build — re-evaluate now that it's a real client ask, not a nice-to-have).
 2. **"פטיש"** — used by the client as whoever approves leave/sick/holiday requests. Unclear if this is a distinct role, a nickname for ראש צוות, or a speech-to-text transcription artifact. Confirm with the client before mapping it to `TEAM_LEAD` or a new role.
-3. **Terminology** — this document and several identifiers (`UserRole.TAKAHIM`, `TakahimDashboard`, the package name, the product name itself) still say "Takahim," but the client-confirmed term is **פקח**. A full rename pass is still outstanding (noted since [[worker-number-auth-2026-08-02|memory]], now client-confirmed rather than assumed).
+3. **Terminology** — ~~resolved 2026-08-12~~: every identifier (`UserRole.TAKAHIM` → `PAKAHIM`, `TakahimDashboard` → `PakahimDashboard`, package name, repo name, GHCR image, VPS deploy path, container names, domain) renamed "Takahim" → "Pakahim," the client-chosen English identifier — **פקח** remains the Hebrew term used throughout the UI copy in `lib/he.ts`, unaffected by this rename either way.
 4. **Auto-sync of the daily Excel** — client wants zero-click ingestion the moment scheduling emails the file; today it requires a manual admin upload. Needs a decision on mechanism (inbox polling vs. watched folder vs. keeping it manual for now).
 
 ## Stack
@@ -69,12 +69,12 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 
 1. **ADMIN** — Uploads Excel shift files, manages platform
 2. **SHIBUTZ** — Creates/manages weekly shift schedules (read-only after publish)
-3. **TAKAHIM** — Train operators: see next shifts, who covers them, report incidents
+3. **PAKAHIM** — Train operators: see next shifts, who covers them, report incidents
 4. **TEAM_LEAD** — Manages a team: monitors shift status, holidays, sick days, receives incident reports
 
 ## Core Features
 
-### For Takahim (Workers)
+### For Pakahim (Workers)
 - Onboarding: name, phone, city (from Israel API), worker number
 - **My Shift:** See next shift, who is replacing them
 - **Team Status:** Who is on shift, holiday, sick day

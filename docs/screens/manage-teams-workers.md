@@ -21,7 +21,7 @@ edit role/team/contact info, in exceptional cases create manually). See `data-mo
 
 1. **Teams list** — every `Team`, member count, team lead name. Edit → change name or
    reassign `teamLeadId` (must be an existing `TEAM_LEAD`-role user, or promote a
-   `TAKAHIM` user to `TEAM_LEAD` inline).
+   `PAKAHIM` user to `TEAM_LEAD` inline).
 2. **Add team** — manual creation for cases the importer wouldn't produce (e.g. a brand
    new region before any roster file mentions it).
 3. **Workers list** — searchable/filterable by role, team, or "no email yet" (surfaces

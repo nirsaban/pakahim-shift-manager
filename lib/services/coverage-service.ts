@@ -61,7 +61,7 @@ export async function requestCoverage(requestedById: string, input: RequestCover
 
   if (input.proposedReplacementId) {
     const proposed = await prisma.user.findUnique({ where: { id: input.proposedReplacementId } });
-    if (!proposed || proposed.role !== 'TAKAHIM' || proposed.teamId !== shift.teamId) {
+    if (!proposed || proposed.role !== 'PAKAHIM' || proposed.teamId !== shift.teamId) {
       return fail(400, 'invalid_proposed_replacement');
     }
   }
@@ -137,7 +137,7 @@ export async function decideCoverageRequest(
   if (!finalReplacementId) return fail(400, 'replacement_required');
 
   const replacement = await prisma.user.findUnique({ where: { id: finalReplacementId } });
-  if (!replacement || replacement.role !== 'TAKAHIM') return fail(400, 'invalid_replacement');
+  if (!replacement || replacement.role !== 'PAKAHIM') return fail(400, 'invalid_replacement');
   if (replacement.id === request.shift.workerId) return fail(400, 'cannot_replace_self');
   if (await hasOverlap(finalReplacementId, request.shift.startTime, request.shift.endTime, request.shift.id)) {
     return fail(409, 'replacement_has_overlapping_shift');
@@ -197,7 +197,7 @@ export async function assignReplacement(
 
   if (replacementId) {
     const replacement = await prisma.user.findUnique({ where: { id: replacementId } });
-    if (!replacement || replacement.role !== 'TAKAHIM') return fail(400, 'invalid_replacement');
+    if (!replacement || replacement.role !== 'PAKAHIM') return fail(400, 'invalid_replacement');
     if (replacement.id === shift.workerId) return fail(400, 'cannot_replace_self');
     if (await hasOverlap(replacementId, shift.startTime, shift.endTime, shift.id)) {
       return fail(409, 'replacement_has_overlapping_shift');
@@ -283,10 +283,10 @@ export async function getPendingRequestForShift(shiftId: string) {
   return prisma.coverageRequest.findFirst({ where: { shiftId, status: 'PENDING' } });
 }
 
-/** Same-team TAKAHIM roster for the "propose who covers" / direct-assign pickers. */
+/** Same-team PAKAHIM roster for the "propose who covers" / direct-assign pickers. */
 export async function getSameTeamCandidates(teamId: string, excludeUserId: string) {
   const members = await prisma.user.findMany({
-    where: { teamId, role: 'TAKAHIM', id: { not: excludeUserId } },
+    where: { teamId, role: 'PAKAHIM', id: { not: excludeUserId } },
     orderBy: { firstName: 'asc' },
   });
   return members.map((m) => ({ id: m.id, name: formatWorkerName(m) }));

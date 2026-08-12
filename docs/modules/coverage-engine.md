@@ -30,7 +30,7 @@ a request at all.
 ```
 assignReplacement(shiftId, replacementId | null, actingUserId)
   1. Load the shift; verify actingUserId leads the shift's team (or is SHIBUTZ/ADMIN).
-  2. If replacementId given: verify that user exists, is TAKAHIM role, and — per the
+  2. If replacementId given: verify that user exists, is PAKAHIM role, and — per the
      open question in data-model.md — is on the same team as the shift (v1 assumption).
   3. Set Shift.replacementId. Do not change Shift.status (direct assignment doesn't imply
      sick/holiday — the original worker might just be swapping shifts with a peer).

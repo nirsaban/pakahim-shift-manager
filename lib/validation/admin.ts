@@ -10,13 +10,13 @@ export const updateTeamSchema = z.object({
   teamLeadId: z.string().min(1).optional(),
 });
 
-const ROLES = ['SUPER_ADMIN', 'ADMIN', 'SHIBUTZ', 'TEAM_LEAD', 'TAKAHIM', 'MAINTENANCE'] as const;
+const ROLES = ['SUPER_ADMIN', 'ADMIN', 'SHIBUTZ', 'TEAM_LEAD', 'PAKAHIM', 'MAINTENANCE'] as const;
 
 export const createWorkerSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2).optional(),
   workerNumber: z.string().min(1),
-  role: z.enum(ROLES).default('TAKAHIM'),
+  role: z.enum(ROLES).default('PAKAHIM'),
   teamId: z.string().min(1).optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),

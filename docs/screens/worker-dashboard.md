@@ -1,6 +1,6 @@
 # Screen: Worker dashboard ("My Shift" + Team Status)
 
-`TakahimDashboard`, one of four role bodies inside `app/dashboard/page.tsx` (route
+`PakahimDashboard`, one of four role bodies inside `app/dashboard/page.tsx` (route
 `/dashboard`). Server component; data fetched per-request from `x-user-id`.
 
 ## Purpose
@@ -50,7 +50,7 @@ itself.
 
 ## Permissions
 
-`TAKAHIM` only. Own data — no worker sees another worker's shift detail here (team status
+`PAKAHIM` only. Own data — no worker sees another worker's shift detail here (team status
 shows names + status only, not full shift/contact detail for teammates).
 
 ## Open questions

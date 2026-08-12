@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository_owner }}/takahim-shift-manager
+  IMAGE: ghcr.io/${{ github.repository_owner }}/pakahim-shift-manager
 
 jobs:
   build:

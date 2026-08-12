@@ -39,7 +39,7 @@ model User {
   city              String?    // Israel city (from API)
   workerNumber      String?    // Unique within tenant
   
-  role              UserRole   @default(TAKAHIM)
+  role              UserRole   @default(PAKAHIM)
   teamId            String?    // null for ADMIN/SHIBUTZ
   team              Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   
@@ -69,7 +69,7 @@ enum UserRole {
   ADMIN        // Tenant admin
   SHIBUTZ      // Shift scheduler
   TEAM_LEAD    // Team manager
-  TAKAHIM      // Worker/operator
+  PAKAHIM      // Worker/operator (פקח)
   MAINTENANCE  // מחלקת אחזקה - handles train-equipment fault reports
 }
 

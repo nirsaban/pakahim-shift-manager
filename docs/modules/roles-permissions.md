@@ -4,7 +4,7 @@ Six roles (`UserRole` enum), all defined today, no new roles proposed in this pa
 
 | Role | Hebrew | Who | Sees |
 |---|---|---|---|
-| `TAKAHIM` | פקח (מנהל נסיעה) | Train inspector | Own shift, own team's status, incident reporting, coverage requests |
+| `PAKAHIM` | פקח (מנהל נסיעה) | Train inspector | Own shift, own team's status, incident reporting, coverage requests |
 | `TEAM_LEAD` | ראש צוות / פטיש | Manages one or more `Team`s | Team roster, team status, incidents addressed to them, coverage approvals for their team(s) |
 | `SHIBUTZ` | משבץ | Scheduler | Uploads roster Excel, can directly assign shift replacements (same authority as a team lead for this action — see `coverage-engine.md`) |
 | `ADMIN` | מנהל | Tenant admin | Everything `SHIBUTZ` sees, plus team/worker management and analytics |
@@ -24,7 +24,7 @@ they lead, not just one.
 
 ## Permission matrix (screen-level)
 
-| Screen | TAKAHIM | TEAM_LEAD | SHIBUTZ | ADMIN | MAINTENANCE |
+| Screen | PAKAHIM | TEAM_LEAD | SHIBUTZ | ADMIN | MAINTENANCE |
 |---|:-:|:-:|:-:|:-:|:-:|
 | Worker dashboard | ✅ (own data) | — | — | — | — |
 | Report incident | ✅ | — | — | — | — |

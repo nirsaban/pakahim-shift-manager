@@ -232,11 +232,11 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
           tenantId: input.tenantId,
           workerNumber: row.workerNumber,
           firstName: row.name,
-          role: 'TAKAHIM',
+          role: 'PAKAHIM',
           teamId,
         },
       });
-    } else if (worker.role === 'TAKAHIM' && worker.teamId !== teamId) {
+    } else if (worker.role === 'PAKAHIM' && worker.teamId !== teamId) {
       // The roster file is the authoritative current placement - keep the worker's
       // team in sync, but never touch their name/email/city (self-reported data).
       worker = await prisma.user.update({ where: { id: worker.id }, data: { teamId } });

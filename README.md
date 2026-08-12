@@ -1,4 +1,4 @@
-# Takahim Shift Manager 🚂
+# Pakahim Shift Manager 🚂
 
 A PWA (Progressive Web App) for Israeli train workers to manage shift schedules, view team status, and report incidents in real-time.
 
@@ -17,7 +17,7 @@ A PWA (Progressive Web App) for Israeli train workers to manage shift schedules,
 ```bash
 # 1. Clone and install
 git clone <repo>
-cd takahim-shift-manager
+cd Pakahim-shift-manager
 npm install
 
 # 2. Create .env.local (copy from .env.example and fill in values)
@@ -53,7 +53,7 @@ npm run dev
 
 | Role | Abilities |
 |------|-----------|
-| **TAKAHIM** | View shifts, team status, report incidents |
+| **PAKAHIM** | View shifts, team status, report incidents |
 | **TEAM_LEAD** | Monitor team, receive incident alerts |
 | **SHIBUTZ** | Upload & manage weekly shift schedules |
 | **ADMIN** | Tenant management, user admin |

@@ -19,7 +19,7 @@ Existing: `getUploadHistory(tenantId)`. New, tenant-wide aggregate queries `NEW`
   populated replacementId` — the single number that most directly answers "is the
   coverage problem actually solved," a natural KPI for this exact redesign.
 - Incident counts by status/severity/route, open-vs-resolved trend.
-- Registration completion: `% of TAKAHIM users with email set` (i.e. who've completed
+- Registration completion: `% of PAKAHIM users with email set` (i.e. who've completed
   `login-onboarding.md`) — directly surfaces the 243-of-246 real-worker gap found in this
   session's production data.
 - Pending coverage requests count, tenant-wide (a rollup of what

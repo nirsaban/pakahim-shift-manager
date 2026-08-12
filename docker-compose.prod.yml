@@ -34,7 +34,7 @@ services:
     # Built and pushed by .github/workflows/deploy.yml — the VPS only pulls,
     # it never builds. Image is public (no secrets baked in; those come from
     # .env.prod at runtime), so no registry login is needed to pull it.
-    image: ghcr.io/${IMAGE_OWNER:-nirsaban}/takahim-shift-manager:latest
+    image: ghcr.io/${IMAGE_OWNER:-nirsaban}/pakahim-shift-manager:latest
     container_name: takahim-app
     restart: unless-stopped
     env_file:
