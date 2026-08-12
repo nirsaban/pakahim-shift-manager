@@ -1,7 +1,17 @@
 import { prisma } from '../db/prisma';
+import { he } from '../he';
 import { sendCoverageDecisionEmail, sendCoverageRequestEmail } from '../mail/mailer';
+import { notify } from './push-service';
 import { formatWorkerName } from '../utils/display-name';
 import type { RequestCoverageInput } from '../validation/coverage';
+
+/** Short "Thu 13/08 06:00-12:15" for notification bodies. */
+export function formatShiftWhen(date: Date, startTime: Date, endTime: Date): string {
+  const day = date.toLocaleDateString('he-IL', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  const from = startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const to = endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${day} ${from}-${to}`;
+}
 
 export type CoverageResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
 
@@ -89,6 +99,18 @@ export async function requestCoverage(requestedById: string, input: RequestCover
     }).catch(() => {});
   }
 
+  if (team && requester) {
+    notify([team.teamLeadId], {
+      title: he.push.coverageRequested.title,
+      body: he.push.coverageRequested.body(
+        formatWorkerName(requester),
+        formatShiftWhen(shift.date, shift.startTime, shift.endTime),
+      ),
+      url: '/dashboard',
+      tag: `coverage-${request.id}`,
+    });
+  }
+
   return ok({ id: request.id });
 }
 
@@ -130,6 +152,14 @@ export async function decideCoverageRequest(
         decisionNote: opts.decisionNote,
       }).catch(() => {});
     }
+    notify([request.requestedById], {
+      title: he.push.coverageRejected.title,
+      body: he.push.coverageRejected.body(
+        formatShiftWhen(request.shift.date, request.shift.startTime, request.shift.endTime),
+      ),
+      url: '/dashboard',
+      tag: `coverage-${requestId}`,
+    });
     return ok(true as const);
   }
 
@@ -181,6 +211,23 @@ export async function decideCoverageRequest(
       : Promise.resolve(),
   ]);
 
+  const when = formatShiftWhen(request.shift.date, request.shift.startTime, request.shift.endTime);
+  notify([request.requestedById], {
+    title: he.push.coverageApproved.title,
+    body: he.push.coverageApproved.body(when),
+    url: '/dashboard',
+    tag: `coverage-${requestId}`,
+  });
+  notify([replacement.id], {
+    title: he.push.assignedAsReplacement.title,
+    body: he.push.assignedAsReplacement.body(
+      requester ? formatWorkerName(requester) : '',
+      when,
+    ),
+    url: '/dashboard',
+    tag: `replacement-${request.shiftId}`,
+  });
+
   return ok(true as const);
 }
 
@@ -212,6 +259,16 @@ export async function assignReplacement(
         endTime: shift.endTime,
       }).catch(() => {});
     }
+    const owner = await prisma.user.findUnique({ where: { id: shift.workerId } });
+    notify([replacement.id], {
+      title: he.push.assignedAsReplacement.title,
+      body: he.push.assignedAsReplacement.body(
+        owner ? formatWorkerName(owner) : '',
+        formatShiftWhen(shift.date, shift.startTime, shift.endTime),
+      ),
+      url: '/dashboard',
+      tag: `replacement-${shiftId}`,
+    });
   } else {
     await prisma.shift.update({ where: { id: shiftId }, data: { replacementId: null } });
   }

@@ -254,10 +254,216 @@ export const he = {
     updated: 'עודכן בהצלחה',
     loggedOut: 'התנתקת בהצלחה',
   },
+
+  // PWA install + push notifications
+  pwa: {
+    installTitle: 'התקנת האפליקציה',
+    installSubtitle: 'התקינו את המערכת למסך הבית כדי לקבל התראות על שינויים במשמרת',
+    whyTitle: 'למה כדאי להתקין?',
+    whyPoints: [
+      'התראה מיידית כשמשובצת לכם משמרת או כשהיא משתנה',
+      'פתיחה מהירה ממסך הבית, בלי לחפש כתובת בדפדפן',
+      'תצוגה מלאה במסך, בלי סרגלי הדפדפן',
+    ],
+    iosTitle: 'אייפון / אייפד (Safari)',
+    iosSteps: [
+      'פתחו את המערכת בדפדפן Safari (לא Chrome)',
+      'הקישו על כפתור השיתוף בתחתית המסך',
+      'גללו ובחרו "הוספה למסך הבית"',
+      'הקישו "הוסף" ופתחו את האפליקציה מהאייקון החדש',
+    ],
+    iosNote:
+      'באייפון אפשר לקבל התראות רק אחרי התקנה למסך הבית. זו מגבלה של Apple, לא של המערכת.',
+    androidTitle: 'אנדרואיד (Chrome)',
+    androidSteps: [
+      'פתחו את המערכת בדפדפן Chrome',
+      'הקישו על תפריט שלוש הנקודות בפינה',
+      'בחרו "התקנת אפליקציה" או "הוספה למסך הבית"',
+      'אשרו את ההתקנה ופתחו מהאייקון החדש',
+    ],
+    desktopTitle: 'מחשב (Chrome / Edge)',
+    desktopSteps: [
+      'פתחו את המערכת בדפדפן',
+      'לחצו על אייקון ההתקנה שבשורת הכתובת',
+      'אשרו "התקן"',
+    ],
+    installNow: 'התקן עכשיו',
+    installed: 'האפליקציה מותקנת',
+    notificationsTitle: 'הפעלת התראות',
+    notificationsSubtitle: 'נשלח התראה רק על דברים שדורשים את תשומת ליבכם',
+    required: 'חובה',
+    requiredTitle: 'הפעלת התראות היא חובה',
+    requiredBody:
+      'שינויים בסידור מתפרסמים במהלך היום. בלי התראות לא תדעו על שינוי במשמרת, על החלפה שאושרה או על תקלה שדווחה — ותגיעו לפי מידע לא מעודכן.',
+    requiredCta: 'הפעילו התראות כדי להמשיך לקבל עדכוני משמרת',
+    enable: 'הפעל התראות',
+    disable: 'כבה התראות',
+    enabled: 'ההתראות פעילות',
+    disabled: 'ההתראות כבויות',
+    checking: 'בודק...',
+    whatYouGetTitle: 'על מה תקבלו התראה',
+    whatYouGet: [
+      'שיבוץ למשמרת חדשה או שינוי במשמרת קיימת',
+      'אישור או דחייה של בקשת החלפה שהגשתם',
+      'כשמישהו משובץ להחליף אתכם',
+      'לראשי צוות: דיווח תקלה חדש מפקח בצוות',
+      'לראשי צוות: בקשת החלפה חדשה הממתינה להחלטה',
+    ],
+    installFirst: 'כדי לקבל התראות באייפון, יש להתקין קודם את האפליקציה למסך הבית',
+    unsupported: 'הדפדפן הזה לא תומך בהתראות. נסו Chrome או Safari מעודכן',
+    permissionDenied:
+      'ההתראות נחסמו בהגדרות הדפדפן. יש לאפשר אותן ידנית בהגדרות האתר ולנסות שוב',
+    notConfigured: 'שירות ההתראות אינו מוגדר בשרת. פנו למנהל המערכת',
+    signInFirst: 'יש להתחבר למערכת לפני הפעלת התראות',
+    openInstallGuide: 'מדריך התקנה והתראות',
+  },
+
+  // Push notification copy. Kept terse - these land on a lock screen.
+  push: {
+    shiftAssigned: {
+      title: 'שובצת למשמרת',
+      body: (when: string) => `משמרת חדשה ${when}`,
+    },
+    shiftChanged: {
+      title: 'המשמרת שלך עודכנה',
+      body: (when: string) => `חלו שינויים במשמרת ${when}. כדאי לבדוק`,
+    },
+    shiftRemoved: {
+      title: 'המשמרת שלך בוטלה',
+      body: (when: string) => `אינך משובץ יותר למשמרת ${when}`,
+    },
+    incidentReported: {
+      title: 'דיווח תקלה חדש',
+      body: (reporter: string, title: string) => `${reporter}: ${title}`,
+    },
+    incidentEmergency: {
+      title: 'אירוע חירום',
+      body: (reporter: string, title: string) => `${reporter}: ${title}`,
+    },
+    coverageRequested: {
+      title: 'בקשת החלפה חדשה',
+      body: (requester: string, when: string) => `${requester} ביקש/ה החלפה למשמרת ${when}`,
+    },
+    coverageApproved: {
+      title: 'בקשת ההחלפה אושרה',
+      body: (when: string) => `הבקשה שלך למשמרת ${when} אושרה`,
+    },
+    coverageRejected: {
+      title: 'בקשת ההחלפה נדחתה',
+      body: (when: string) => `הבקשה שלך למשמרת ${when} נדחתה`,
+    },
+    assignedAsReplacement: {
+      title: 'שובצת כמחליף',
+      body: (worker: string, when: string) => `אתה מחליף את ${worker} במשמרת ${when}`,
+    },
+  },
+
+  // Data-accuracy disclaimer
+  disclaimer: {
+    title: 'המידע במערכת הוא עזר בלבד',
+    body: 'הנתונים כאן נקראים אוטומטית מקובץ הסידור ומפוענחים על ידי המערכת, כולל חפיפות, החלפות והצעות. ייתכנו טעויות בפענוח.',
+    action: 'לפני כל משמרת יש לוודא את הפרטים מול קובץ הסידור המקורי שנשלח ממחלקת השיבוץ.',
+    acknowledge: 'הבנתי',
+    short: 'מידע לעזר בלבד — יש לוודא מול קובץ הסידור המקורי',
+  },
+
+  // Roster engine: parsed duties, handoffs, swap suggestions
+  roster: {
+    handoffs: {
+      title: 'חפיפות משמרת',
+      subtitle: 'מי מחליף את מי, באיזו רכבת ובאיזו תחנה',
+      empty: 'לא נמצאו חפיפות ליום זה',
+      train: 'רכבת',
+      at: 'בתחנת',
+      gap: 'הפרש',
+      minutes: 'דק׳',
+      from: 'מוסר',
+      to: 'מקבל',
+      crossing: 'הצלבת נסיעות סרק',
+    },
+    swaps: {
+      title: 'הצעות להחלפת משמרות',
+      subtitle: 'החלפות שחוסכות נסיעות סרק לשני הפקחים',
+      empty: 'אין הצעות החלפה ליום זה',
+      saved: 'חיסכון מוערך',
+      minutes: 'דק׳ נסיעה',
+      savedRail: 'חיסכון בנסיעת סרק של הפקח',
+      savedTaxi: 'חיסכון בהסעות (מוניות)',
+      transport: {
+        TAXI: 'הסעה במונית',
+        RAIL: 'נסיעת סרק ברכבת',
+        NONE: 'ללא ציון',
+      },
+      arrivesBy: 'הגעה למשמרת',
+      leavesBy: 'חזרה מהמשמרת',
+      home: 'מתגורר ב',
+      homeUnknown: 'מקום מגורים לא ידוע',
+      startsAt: 'מתחיל ב',
+      endsAt: 'מסיים ב',
+      dismiss: 'התעלם',
+      convert: 'פתח בקשת החלפה',
+      converted: 'נפתחה בקשת החלפה',
+      dismissed: 'ההצעה הוסרה',
+      needsHomeStations:
+        'ההצעה מבוססת על מבנה המשמרת בלבד - השלימו מקום מגורים לפקחים כדי לדרג לפי זמן נסיעה',
+      kind: {
+        ABSORB_HANDOFF: 'הצלבת נסיעות סרק',
+        SWAP_DUTIES: 'החלפת משמרות',
+        FILL_OPEN_DUTY: 'איוש משמרת פנויה',
+      },
+      rationale: {
+        DEADHEAD_CROSSING: 'שני הפקחים נוסעים כנוסעים בכיוונים הפוכים דרך אותה תחנה',
+        DEADHEAD_CROSSING_UNVERIFIED:
+          'שני הפקחים נוסעים כנוסעים בכיוונים הפוכים דרך אותה תחנה (טרם אומת מול מקום מגורים)',
+        HOME_STATION_EXCHANGE: 'החלפה מקצרת את נסיעות הסרק של שני הפקחים',
+        NEAREST_TO_OPEN_DUTY: 'הפקח הקרוב ביותר למשמרת הפנויה',
+      },
+      note: {
+        crossing: 'הצעת חילופין אוטומטית: הצלבת נסיעות סרק',
+        savings: 'הצעת חילופין אוטומטית: חיסכון מוערך של',
+        minutesTravel: 'דקות נסיעה',
+      },
+      errors: {
+        swap_not_found: 'ההצעה לא נמצאה',
+        swap_already_decided: 'כבר טופלה הצעה זו',
+        duty_has_no_shift: 'למשמרת זו אין שיבוץ במערכת',
+        duty_has_no_worker: 'למשמרת זו לא משויך פקח',
+      },
+    },
+    duty: {
+      openDuty: 'משמרת ללא שיבוץ',
+      reinforcement: 'פקח מתגבר (משני)',
+      parsePartial: 'פוענח חלקית',
+      parseFailed: 'לא ניתן לפענח',
+      legs: 'מקטעי נסיעה',
+      transit: 'נסיעת סרק',
+      duty: 'נסיעה בתפקיד',
+    },
+  },
 };
 
 export function coverageErrorMessage(code: string): string {
   return (he.coverage.errors as Record<string, string>)[code] ?? he.error.serverError;
+}
+
+export function swapErrorMessage(code: string): string {
+  return (
+    (he.roster.swaps.errors as Record<string, string>)[code] ??
+    (he.coverage.errors as Record<string, string>)[code] ??
+    he.error.serverError
+  );
+}
+
+export function swapRationaleMessage(code: string): string {
+  return (he.roster.swaps.rationale as Record<string, string>)[code] ?? '';
+}
+
+export function swapKindLabel(kind: string): string {
+  return (he.roster.swaps.kind as Record<string, string>)[kind] ?? kind;
+}
+
+export function transportLabel(mode: string): string {
+  return (he.roster.swaps.transport as Record<string, string>)[mode] ?? mode;
 }
 
 export function adminErrorMessage(code: string): string {

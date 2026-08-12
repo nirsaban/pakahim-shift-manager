@@ -16,6 +16,7 @@ import {
   UserCog,
   BarChart3,
   UserCheck,
+  Bell,
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { getDefaultTenantId } from '@/lib/db/tenant';
@@ -37,10 +38,15 @@ import {
   getShiftsCoveringFor,
   listPendingCoverageRequests,
 } from '@/lib/services/coverage-service';
+import {
+  getActiveSuggestionDate,
+  listSwapSuggestions,
+} from '@/lib/services/swap-service';
 import { formatWorkerName } from '@/lib/utils/display-name';
 import { toWhatsAppLink } from '@/lib/utils/whatsapp';
-import { he } from '@/lib/he';
+import { he, swapKindLabel, swapRationaleMessage, transportLabel } from '@/lib/he';
 import { Brand } from '../_components/Brand';
+import { DataAccuracyNotice } from '../_components/DataAccuracyNotice';
 import { PageHeader } from '../_components/ui/PageHeader';
 import { Card, CardHeader } from '../_components/ui/Card';
 import { Badge } from '../_components/ui/Badge';
@@ -53,6 +59,8 @@ import { IncidentActions } from './_components/IncidentActions';
 import { RequestCoverageForm } from './_components/RequestCoverageForm';
 import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
 import { DirectAssignForm } from './_components/DirectAssignForm';
+import { SwapSuggestionActions } from './_components/SwapSuggestionActions';
+import { NotificationsPrompt } from './_components/NotificationsPrompt';
 
 function StatTile({
   label,
@@ -156,13 +164,21 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted">שלום,</p>
             <p className="text-sm font-semibold text-foreground">{displayName}</p>
           </div>
+          <Link href="/install" aria-label={he.pwa.openInstallGuide} title={he.pwa.openInstallGuide}>
+            <Button variant="secondary" size="md">
+              <Bell size={15} />
+            </Button>
+          </Link>
           <LogoutButton />
         </div>
       </PageHeader>
 
       <div className="flex flex-col gap-6 pt-4">
+        <DataAccuracyNotice />
+        <NotificationsPrompt />
+
         {role === 'PAKAHIM' && <PakahimDashboard userId={userId} teamId={user.teamId} />}
-        {role === 'TEAM_LEAD' && <TeamLeadDashboard userId={userId} />}
+        {role === 'TEAM_LEAD' && <TeamLeadDashboard userId={userId} tenantId={user.tenantId} />}
         {role === 'MAINTENANCE' && <MaintenanceDashboard userId={userId} />}
         {(role === 'SHIBUTZ' || role === 'ADMIN' || role === 'SUPER_ADMIN') && <AdminDashboard />}
       </div>
@@ -279,7 +295,123 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
   );
 }
 
-async function TeamLeadDashboard({ userId }: { userId: string }) {
+function minutesLabel(minutes: number | null): string {
+  if (minutes === null) return '--:--';
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Swap suggestions for the active roster date.
+ *
+ * ABSORB_HANDOFF entries appear even when no home stations are known — they are
+ * structural evidence (two inspectors dead-heading in opposite directions
+ * through the same station), so the panel is useful before onboarding fills the
+ * home-station data in. The banner says so rather than showing an empty list.
+ */
+async function SwapSuggestionsPanel({ tenantId }: { tenantId: string }) {
+  const date = await getActiveSuggestionDate(tenantId);
+  const suggestions = date ? await listSwapSuggestions({ tenantId, date, limit: 20 }) : [];
+
+  const anyUnverified = suggestions.some(
+    (s) => s.rationale?.code === 'DEADHEAD_CROSSING_UNVERIFIED',
+  );
+
+  return (
+    <Card>
+      <CardHeader title={he.roster.swaps.title} icon={<ArrowLeftRight size={16} />} />
+      <p className="text-sm text-muted">{he.roster.swaps.subtitle}</p>
+      {date && (
+        <p className="mt-1 text-sm text-muted">
+          {date.toLocaleDateString('he-IL', { weekday: 'long', day: '2-digit', month: '2-digit' })}
+        </p>
+      )}
+
+      {anyUnverified && (
+        <p className="mt-3 rounded-lg bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+          {he.roster.swaps.needsHomeStations}
+        </p>
+      )}
+
+      <ul className="mt-3 flex flex-col gap-3">
+        {suggestions.map((s) => (
+          <li key={s.id} className="flex flex-col gap-2 border-t border-border py-3 first:border-0 first:pt-0">
+            <div className="flex items-center justify-between gap-3">
+              <Badge tone="info">{swapKindLabel(s.kind)}</Badge>
+              {s.savedMinutes > 0 && (
+                <span className="text-sm font-medium text-foreground">
+                  {he.roster.swaps.saved} {s.savedMinutes} {he.roster.swaps.minutes}
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm text-muted">{swapRationaleMessage(s.rationale?.code ?? '')}</p>
+
+            {s.handoff && (
+              <p className="text-sm text-muted">
+                {he.roster.handoffs.train} {s.handoff.trainNumber}
+                {s.stationNames.handoff ? ` · ${he.roster.handoffs.at} ${s.stationNames.handoff}` : ''}
+                {` · ${he.roster.handoffs.gap} ${s.handoff.gapMinutes} ${he.roster.handoffs.minutes}`}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1 text-sm">
+              <span className="text-foreground">
+                {he.roster.handoffs.from}: {s.dutyA.workerName || he.roster.duty.openDuty} (#{s.dutyA.serial})
+                {' · '}
+                {he.roster.swaps.endsAt} {s.stationNames.endA ?? '—'} {minutesLabel(s.dutyA.endMinutes)}
+                {' · '}
+                <span className="text-muted">
+                  {he.roster.swaps.leavesBy}: {transportLabel(s.dutyA.endTransport)}
+                </span>
+              </span>
+              <span className="text-foreground">
+                {he.roster.handoffs.to}: {s.dutyB.workerName || he.roster.duty.openDuty} (#{s.dutyB.serial})
+                {' · '}
+                {he.roster.swaps.startsAt} {s.stationNames.startB ?? '—'} {minutesLabel(s.dutyB.startMinutes)}
+                {' · '}
+                <span className="text-muted">
+                  {he.roster.swaps.arrivesBy}: {transportLabel(s.dutyB.startTransport)}
+                </span>
+              </span>
+              {(s.evidence?.homeA || s.evidence?.homeB) && (
+                <span className="text-muted">
+                  {he.roster.swaps.home} {s.evidence.homeA ?? he.roster.swaps.homeUnknown}
+                  {' / '}
+                  {s.evidence.homeB ?? he.roster.swaps.homeUnknown}
+                </span>
+              )}
+              {/* Rail minutes are the inspector's own time; taxi minutes are a
+                  railway cost. Kept apart so a scheduler sees which is which. */}
+              {s.evidence?.railMinutesSaved > 0 && (
+                <span className="text-muted">
+                  {he.roster.swaps.savedRail}: {s.evidence.railMinutesSaved} {he.roster.handoffs.minutes}
+                </span>
+              )}
+              {s.evidence?.taxiMinutesSaved > 0 && (
+                <span className="text-muted">
+                  {he.roster.swaps.savedTaxi}: {s.evidence.taxiMinutesSaved} {he.roster.handoffs.minutes}
+                </span>
+              )}
+            </div>
+
+            <SwapSuggestionActions
+              suggestionId={s.id}
+              canConvert={Boolean(s.dutyA.shiftId && s.workerBId)}
+            />
+          </li>
+        ))}
+      </ul>
+
+      {suggestions.length === 0 && (
+        <EmptyState icon={<ArrowLeftRight size={22} />}>{he.roster.swaps.empty}</EmptyState>
+      )}
+    </Card>
+  );
+}
+
+async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantId: string }) {
   const teams = await getTeamsLedBy(userId);
   const teamIds = teams.map((t) => t.id);
   const [roster, members, incidents, pendingRequests] = await Promise.all([
@@ -297,6 +429,8 @@ async function TeamLeadDashboard({ userId }: { userId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <RosterList entries={roster} showTeam={teams.length > 1} />
+
+      <SwapSuggestionsPanel tenantId={tenantId} />
 
       <Card>
         <CardHeader title={he.coverage.approvalsTitle} icon={<CalendarOff size={16} />} />
@@ -405,6 +539,8 @@ async function AdminDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
+      <SwapSuggestionsPanel tenantId={tenantId} />
+
       <Card>
         <CardHeader title={he.admin.adminPanel} icon={<UploadCloud size={16} />} />
         <div className="flex flex-wrap gap-2">

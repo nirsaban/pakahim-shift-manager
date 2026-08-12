@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getDefaultTenantId } from '@/lib/db/tenant';
 import { registerSchema } from '@/lib/validation/auth';
 import { respondWithSession } from '@/lib/auth/login-response';
+import { resolveHomeStationForCity } from '@/lib/services/station-service';
 import { he } from '@/lib/he';
 
 export async function POST(request: NextRequest) {
@@ -33,9 +34,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: he.error.emailTaken }, { status: 409 });
   }
 
+  // Derive a home station from the city so swap scoring has something to work
+  // with from day one. An unrecognised city resolves to null and is queued for
+  // admin review rather than guessed - see station-service.
+  const { stationId, source } = await resolveHomeStationForCity(city);
+
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { firstName, lastName, city, email, phone },
+    data: { firstName, lastName, city, email, phone, homeStationId: stationId, homeStationSource: source },
   });
 
   return respondWithSession(updated);

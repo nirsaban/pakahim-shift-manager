@@ -1,5 +1,7 @@
 import { prisma } from '../db/prisma';
+import { he } from '../he';
 import { sendIncidentAlertEmail } from '../mail/mailer';
+import { notify } from './push-service';
 import { formatWorkerName } from '../utils/display-name';
 import type { CreateIncidentInput } from '../validation/incidents';
 
@@ -73,6 +75,18 @@ export async function createIncident(workerId: string, input: CreateIncidentInpu
         }).catch(() => {}),
       ),
   );
+
+  // Push to the same fan-out the email goes to. An emergency stays on screen
+  // until dismissed; a routine fault does not deserve that.
+  const isEmergency = incident.route === 'EMERGENCY_BROADCAST';
+  const copy = isEmergency ? he.push.incidentEmergency : he.push.incidentReported;
+  notify(recipientIds, {
+    title: copy.title,
+    body: copy.body(workerName, incident.title),
+    url: '/dashboard',
+    tag: `incident-${incident.id}`,
+    urgent: isEmergency,
+  });
 
   const teamLead = recipients.find((r) => r.id === teamLeadId) ?? null;
 

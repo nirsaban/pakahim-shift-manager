@@ -12,6 +12,12 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/logout',
   '/discovery.html',
   '/api/discovery',
+  // Install instructions must be readable before logging in - a worker being
+  // told "install the app first" has not necessarily signed in yet.
+  '/install',
+  // The VAPID public key is public by definition; it is the identifier the
+  // browser needs to build a subscription.
+  '/api/push/vapid-public-key',
 ]);
 
 export async function proxy(request: NextRequest) {
@@ -40,5 +46,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // The PWA assets MUST stay outside the auth check. A service worker is only
+  // registered if /sw.js returns the script itself - a 307 to /login silently
+  // disables push for everyone, and the manifest/icons must resolve for the
+  // browser to offer "add to home screen" at all.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|.*\\.png$|.*\\.svg$|.*\\.ico$).*)',
+  ],
 };
