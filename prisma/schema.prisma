@@ -10,53 +10,62 @@ datasource db {
 }
 
 model Tenant {
-  id                String     @id @default(cuid())
-  name              String
-  slug              String     @unique
-  subscriptionPlan  String     @default("free") // free, pro, enterprise
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  subscriptionPlan String   @default("free") // free, pro, enterprise
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  users             User[]
-  teams             Team[]
-  shifts            Shift[]
-  incidents         Incident[]
+  users     User[]
+  teams     Team[]
+  shifts    Shift[]
+  incidents Incident[]
+  duties    Duty[]
 
   @@map("tenants")
 }
 
 model User {
-  id                String     @id @default(cuid())
-  tenantId          String
-  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  email             String?    // null for workers created from a roster import who haven't logged in yet
-  phone             String?
-  password          String?    // null if using phone OTP
-  
-  firstName         String?
-  lastName          String?
-  city              String?    // Israel city (from API)
-  workerNumber      String?    // Unique within tenant
-  
-  role              UserRole   @default(PAKAHIM)
-  teamId            String?    // null for ADMIN/SHIBUTZ
-  team              Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  
-  fcmToken          String?    // Firebase Cloud Messaging token for push notifications
-  
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  shifts             Shift[]
-  incidents          Incident[]
-  teamLeadIncidents  Incident[]          @relation("TeamLead")
-  ledTeams           Team[]              @relation("TeamLeadOf")
-  incidentRecipients IncidentRecipient[]
-  replacementFor     Shift[]             @relation("ShiftReplacement")
-  coverageRequestsMade     CoverageRequest[] @relation("CoverageRequester")
-  coverageRequestsDecided  CoverageRequest[] @relation("CoverageDecider")
-  coverageProposedFor      CoverageRequest[] @relation("CoverageProposedReplacement")
+  email    String? // null for workers created from a roster import who haven't logged in yet
+  phone    String?
+  password String? // null if using phone OTP
+
+  firstName    String?
+  lastName     String?
+  city         String? // Israel city (from API)
+  workerNumber String? // Unique within tenant
+
+  role   UserRole @default(PAKAHIM)
+  teamId String? // null for ADMIN/SHIBUTZ
+  team   Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  fcmToken String? // Firebase Cloud Messaging token for push notifications
+
+  // Home station drives swap scoring. Nullable and expected to be sparse: it is
+  // filled in as workers onboard, and the engine degrades to structural
+  // (dead-head crossing) detection rather than failing when it is unknown.
+  homeStationId     String?
+  homeStation       Station?          @relation("UserHomeStation", fields: [homeStationId], references: [id], onDelete: SetNull)
+  homeStationSource HomeStationSource @default(UNKNOWN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shifts                  Shift[]
+  incidents               Incident[]
+  teamLeadIncidents       Incident[]          @relation("TeamLead")
+  ledTeams                Team[]              @relation("TeamLeadOf")
+  incidentRecipients      IncidentRecipient[]
+  replacementFor          Shift[]             @relation("ShiftReplacement")
+  pushSubscriptions       PushSubscription[]
+  coverageRequestsMade    CoverageRequest[]   @relation("CoverageRequester")
+  coverageRequestsDecided CoverageRequest[]   @relation("CoverageDecider")
+  coverageProposedFor     CoverageRequest[]   @relation("CoverageProposedReplacement")
 
   @@unique([tenantId, email])
   @@unique([tenantId, workerNumber])
@@ -64,29 +73,36 @@ model User {
   @@map("users")
 }
 
+enum HomeStationSource {
+  SELF_SELECTED
+  DERIVED_FROM_CITY
+  ADMIN_SET
+  UNKNOWN
+}
+
 enum UserRole {
-  SUPER_ADMIN  // Platform-wide admin
-  ADMIN        // Tenant admin
-  SHIBUTZ      // Shift scheduler
-  TEAM_LEAD    // Team manager
-  PAKAHIM      // Worker/operator (פקח)
-  MAINTENANCE  // מחלקת אחזקה - handles train-equipment fault reports
+  SUPER_ADMIN // Platform-wide admin
+  ADMIN // Tenant admin
+  SHIBUTZ // Shift scheduler
+  TEAM_LEAD // Team manager
+  PAKAHIM // Worker/operator (פקח)
+  MAINTENANCE // מחלקת אחזקה - handles train-equipment fault reports
 }
 
 model Team {
-  id                String     @id @default(cuid())
-  tenantId          String
-  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  name              String
-  teamLeadId        String
-  teamLead          User       @relation("TeamLeadOf", fields: [teamLeadId], references: [id], onDelete: Restrict)
-  
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  users             User[]
-  shifts            Shift[]
+  name       String
+  teamLeadId String
+  teamLead   User   @relation("TeamLeadOf", fields: [teamLeadId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  User[]
+  shifts Shift[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -94,31 +110,32 @@ model Team {
 }
 
 model Shift {
-  id                String     @id @default(cuid())
-  tenantId          String
-  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  workerId          String
-  worker            User       @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  
-  teamId            String
-  team              Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  date              DateTime   // Date of the shift (no time)
-  startTime         DateTime   // Full timestamp with time
-  endTime           DateTime   // Full timestamp with time
-  
-  status            ShiftStatus @default(SCHEDULED) // SCHEDULED, STARTED, COMPLETED, CANCELLED, HOLIDAY, SICK
-  replacementId     String?    // Worker who replaces this worker - set by direct assignment or an approved CoverageRequest
-  replacement       User?      @relation("ShiftReplacement", fields: [replacementId], references: [id], onDelete: SetNull)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  region            String?    // region/team label as it appeared in the imported roster file
-  notes             String?    // route, train sets, Mirs radio id, trainee, reserve-list tag - combined from import
+  workerId String
+  worker   User   @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  coverageRequests  CoverageRequest[]
+  date      DateTime // Date of the shift (no time)
+  startTime DateTime // Full timestamp with time
+  endTime   DateTime // Full timestamp with time
+
+  status        ShiftStatus @default(SCHEDULED) // SCHEDULED, STARTED, COMPLETED, CANCELLED, HOLIDAY, SICK
+  replacementId String? // Worker who replaces this worker - set by direct assignment or an approved CoverageRequest
+  replacement   User?       @relation("ShiftReplacement", fields: [replacementId], references: [id], onDelete: SetNull)
+
+  region String? // region/team label as it appeared in the imported roster file
+  notes  String? // route, train sets, Mirs radio id, trainee, reserve-list tag - combined from import
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coverageRequests CoverageRequest[]
+  duty             Duty? // parsed roster line this shift came from, if any
 
   @@index([tenantId])
   @@index([workerId])
@@ -138,28 +155,28 @@ enum ShiftStatus {
 }
 
 model Incident {
-  id                String     @id @default(cuid())
-  tenantId          String
-  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  workerId          String
-  worker            User       @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  
-  teamLeadId        String
-  teamLead          User       @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: Restrict)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  title             String
-  description       String
+  workerId String
+  worker   User   @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
-  status            IncidentStatus @default(OPEN) // OPEN, ACKNOWLEDGED, RESOLVED
-  severity          String     @default("normal") // low, normal, high, critical
-  route             IncidentRoute @default(TEAM_LEAD) // who this was reported as - drives fan-out recipients
+  teamLeadId String
+  teamLead   User   @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: Restrict)
 
-  recipients        IncidentRecipient[]
+  title       String
+  description String
 
-  createdAt         DateTime   @default(now())
-  resolvedAt        DateTime?
-  updatedAt         DateTime   @updatedAt
+  status   IncidentStatus @default(OPEN) // OPEN, ACKNOWLEDGED, RESOLVED
+  severity String         @default("normal") // low, normal, high, critical
+  route    IncidentRoute  @default(TEAM_LEAD) // who this was reported as - drives fan-out recipients
+
+  recipients IncidentRecipient[]
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
 
   @@index([tenantId])
   @@index([workerId])
@@ -189,10 +206,10 @@ model IncidentRecipient {
   incidentId String
   incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([incidentId, userId])
   @@index([incidentId])
@@ -201,20 +218,20 @@ model IncidentRecipient {
 }
 
 model ShiftFile {
-  id                String     @id @default(cuid())
-  tenantId          String
-  
-  filename          String
-  fileUrl           String     // Cloudinary or S3 URL
-  
-  uploadedBy        String     // User ID
-  
-  status            FileStatus @default(PENDING) // PENDING, VALIDATED, IMPORTED, FAILED
-  errorMessage      String?
-  
-  importedShiftCount Int       @default(0)
-  
-  createdAt         DateTime   @default(now())
+  id       String @id @default(cuid())
+  tenantId String
+
+  filename String
+  fileUrl  String // Cloudinary or S3 URL
+
+  uploadedBy String // User ID
+
+  status       FileStatus @default(PENDING) // PENDING, VALIDATED, IMPORTED, FAILED
+  errorMessage String?
+
+  importedShiftCount Int @default(0)
+
+  createdAt DateTime @default(now())
 
   @@index([tenantId])
   @@map("shift_files")
@@ -231,30 +248,30 @@ enum FileStatus {
 // Approval is the write path that actually populates Shift.replacementId for real
 // (imported roster data has no coverage/replacement concept at all - see docs/modules/excel-import.md).
 model CoverageRequest {
-  id                     String                 @id @default(cuid())
-  tenantId               String
+  id       String @id @default(cuid())
+  tenantId String
 
-  shiftId                String
-  shift                  Shift                  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  shiftId String
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
-  requestedById          String
-  requestedBy            User                   @relation("CoverageRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User   @relation("CoverageRequester", fields: [requestedById], references: [id], onDelete: Cascade)
 
-  reason                 CoverageReason
-  note                   String?                // required (enforced in validation) when reason = OTHER
+  reason CoverageReason
+  note   String? // required (enforced in validation) when reason = OTHER
 
-  proposedReplacementId  String?
-  proposedReplacement    User?                  @relation("CoverageProposedReplacement", fields: [proposedReplacementId], references: [id], onDelete: SetNull)
+  proposedReplacementId String?
+  proposedReplacement   User?   @relation("CoverageProposedReplacement", fields: [proposedReplacementId], references: [id], onDelete: SetNull)
 
-  status                 CoverageRequestStatus  @default(PENDING)
+  status CoverageRequestStatus @default(PENDING)
 
-  decidedById            String?
-  decidedBy              User?                  @relation("CoverageDecider", fields: [decidedById], references: [id], onDelete: SetNull)
-  decidedAt              DateTime?
-  decisionNote           String?
+  decidedById  String?
+  decidedBy    User?     @relation("CoverageDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  decisionNote String?
 
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([shiftId])
@@ -277,16 +294,350 @@ enum CoverageRequestStatus {
   CANCELLED
 }
 
-model DiscoveryAnswer {
-  id          String   @id @default(cuid())
-  questionId  String   @unique
-  section     String
-  question    String
-  answer      String
-  method      String?  // typed | voice
+// ---------------------------------------------------------------------------
+// Roster engine: parsed shift strings -> duties -> handoffs -> swap suggestions
+//
+// Station/TrainLine/TrainLineStop are Israel Railways reference facts, not
+// tenant data, so they are global. They exist in the DB for the UI (station
+// pickers), the city->station mapping, and the unresolved-alias review queue;
+// the parser itself reads the same data from lib/reference/*.ts so it can run
+// with no database (see scripts/verify-roster.ts).
+//
+// Duty/DutyLeg/Handoff reference stations by their stable `code` string rather
+// than by FK. They are derived data, wiped and rebuilt on every import, and the
+// parser speaks in codes. User.homeStationId IS a real FK - that is human-entered
+// data that needs referential integrity.
+// ---------------------------------------------------------------------------
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Station {
+  id          String  @id @default(cuid())
+  code        String  @unique // canonical slug used everywhere: "lod", "hagana"
+  nameHe      String
+  isUncertain Boolean @default(false) // inferred from roster notes, not read off the booklet
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aliases StationAlias[]
+  stops   TrainLineStop[]
+  homeOf  User[]          @relation("UserHomeStation")
+
+  @@map("stations")
+}
+
+// Every surface form we have seen, mapped to a Station. `stationId = null` is
+// the graceful-degradation state: "we saw this, nobody has told us what it is".
+// The admin review queue is exactly `where: { stationId: null }`.
+model StationAlias {
+  id         String    @id @default(cuid())
+  kind       AliasKind
+  normalized String // lookup key
+  raw        String // first surface form seen, for the review UI
+
+  stationId String?
+  station   Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  seenCount Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kind, normalized])
+  @@index([stationId])
+  @@map("station_aliases")
+}
+
+enum AliasKind {
+  SHIFT_TOKEN // "hagana", "tzafon"
+  ROUTE_NOTE // "תל אביב ההגנה"
+  CITY // User.city free text
+}
+
+model TrainLine {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  nameHe      String
+  rangeStart  Int
+  rangeEnd    Int
+  isUncertain Boolean @default(false) // true for the inferred 840-881 corridor
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stops TrainLineStop[]
+
+  @@map("train_lines")
+}
+
+model TrainLineStop {
+  id        String    @id @default(cuid())
+  lineId    String
+  line      TrainLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stationId String
+  station   Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  ordinal   Int
+
+  @@unique([lineId, ordinal])
+  @@index([stationId])
+  @@map("train_line_stops")
+}
+
+// One roster line for one date. Survives independently of Shift: ~13 rows a day
+// carry a real shift string with nobody assigned, and those are open duties a
+// swap can move someone into.
+model Duty {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  date            DateTime
+  section         String // cleaned block title, stable across days
+  serial          String // raw מס"ד: "1", "משני17", "2ב\"ש"
+  isReinforcement Boolean  @default(false) // משני - מערך כפול double crew
+
+  startMinutes Int?
+  endMinutes   Int?
+
+  shiftString  String
+  routeNote    String?
+  remarks      String?
+  trailingNote String? // Hebrew prose found appended to the code
+
+  workerNumber String?
+  workerName   String?
+  mirs         String?
+
+  // (section, serial, shiftString) identifies a duty TEMPLATE. 224 of 253 shared
+  // duties were byte-identical across two consecutive days while only 14 kept
+  // the same inspector, so this is what makes cross-day parse caching possible.
+  templateHash  String
+  parseStatus   DutyParseStatus @default(OK)
+  parseWarnings Json?
+
+  firstActiveTrain String?
+  lastActiveTrain  String?
+
+  startStation String?
+  startSource  StationSource @default(UNKNOWN)
+  endStation   String? // end of the last ACTIVE leg, not of the ride home
+  endSource    StationSource @default(UNKNOWN)
+  finalStation String? // where the whole string ends, BT included
+
+  // How the inspector gets to/from the shift. TAXI (an איסוף/פיזור note) is
+  // railway-paid door-to-door transport; RAIL (a bt leg) is the inspector's own
+  // unpaid travel. The roster never uses both at the same end.
+  startTransport TransportMode @default(NONE)
+  endTransport   TransportMode @default(NONE)
+
+  shiftId String? @unique
+  shift   Shift?  @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  legs                  DutyLeg[]
+  handoffsAsPredecessor Handoff[]        @relation("HandoffPredecessor")
+  handoffsAsSuccessor   Handoff[]        @relation("HandoffSuccessor")
+  swapsAsA              SwapSuggestion[] @relation("SwapDutyA")
+  swapsAsB              SwapSuggestion[] @relation("SwapDutyB")
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, date, section, serial])
+  @@index([tenantId, date])
+  @@index([tenantId, templateHash])
+  @@index([tenantId, date, lastActiveTrain])
+  @@index([tenantId, date, firstActiveTrain])
+  @@map("duties")
+}
+
+enum DutyParseStatus {
+  OK
+  PARTIAL
+  FAILED
+}
+
+/// How an inspector reaches the start of a shift, or leaves the end of one.
+/// TAXI comes from an "איסוף ל<X>" / "פיזור מ<X>" route note - a railway-paid
+/// door-to-door ride. RAIL comes from a `bt` leg - riding a service train as a
+/// passenger, on the inspector's own time. Measured on the real roster these are
+/// mutually exclusive at each end: of 99 rows with an איסוף note, zero begin with
+/// a bt leg.
+enum TransportMode {
+  TAXI
+  RAIL
+  NONE
+}
+
+// Where a station endpoint came from. Drives scoring confidence: an endpoint
+// assumed from the Lod convention must not outrank one stated in a route note.
+enum StationSource {
+  EXPLICIT_TOKEN
+  ROUTE_NOTE
+  DEFAULT_LOD
+  INFERRED_TRANSFER
+  UNKNOWN
+}
+
+model DutyLeg {
+  id     String @id @default(cuid())
+  dutyId String
+  duty   Duty   @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+
+  seq       Int
+  kind      DutyLegKind
+  isDuty    Boolean // false for TRANSIT/TAXI - the dead-head flag
+  rawTokens String[]
+
+  trainNumber   String?
+  lineCode      String?
+  isServiceMove Boolean @default(false) // 4-digit number resolved by stripping a leading digit
+
+  opCode     String?
+  opOperands String[]
+  atMinutes  Int? // taxi departure time
+
+  fromStation String?
+  fromSource  StationSource @default(UNKNOWN)
+  toStation   String?
+  toSource    StationSource @default(UNKNOWN)
+
+  @@unique([dutyId, seq])
+  @@index([trainNumber])
+  @@map("duty_legs")
+}
+
+enum DutyLegKind {
+  TRAIN
+  TRANSIT
+  STANDBY
+  OPS
+  TAXI
+  INSPECTION
+  UNKNOWN
+}
+
+// Detected duty handoff: predecessor's last active train == successor's first
+// active train, same matching block, within the configured time window.
+model Handoff {
+  id          String   @id @default(cuid())
+  tenantId    String
+  date        DateTime
+  section     String
+  trainNumber String
+
+  predecessorDutyId String
+  predecessorDuty   Duty   @relation("HandoffPredecessor", fields: [predecessorDutyId], references: [id], onDelete: Cascade)
+  successorDutyId   String
+  successorDuty     Duty   @relation("HandoffSuccessor", fields: [successorDutyId], references: [id], onDelete: Cascade)
+
+  station               String? // where the baton passes
+  predecessorEndMinutes Int
+  successorStartMinutes Int
+  gapMinutes            Int
+  isReinforcement       Boolean @default(false)
+  confidence            Float   @default(1)
+
+  // The predecessor leaves this station as a passenger at the same moment the
+  // successor arrives into it as a passenger. Detected with NO home-station
+  // data, which is what lets swap suggestions work before onboarding fills in.
+  bothSidesDeadhead    Boolean @default(false)
+  predecessorExitTrain String?
+  successorEntryTrain  String?
+
+  createdAt DateTime @default(now())
+
+  swaps SwapSuggestion[]
+
+  @@unique([tenantId, date, predecessorDutyId, successorDutyId])
+  @@index([tenantId, date])
+  @@index([successorDutyId])
+  @@map("handoffs")
+}
+
+model SwapSuggestion {
+  id       String   @id @default(cuid())
+  tenantId String
+  date     DateTime
+  kind     SwapKind
+
+  handoffId String?
+  handoff   Handoff? @relation(fields: [handoffId], references: [id], onDelete: Cascade)
+
+  dutyAId String
+  dutyA   Duty   @relation("SwapDutyA", fields: [dutyAId], references: [id], onDelete: Cascade)
+  dutyBId String
+  dutyB   Duty   @relation("SwapDutyB", fields: [dutyBId], references: [id], onDelete: Cascade)
+
+  workerAId String?
+  workerBId String?
+
+  score        Float
+  savedMinutes Int
+  // Structured codes + numbers, never Hebrew prose - lib/he.ts renders it.
+  rationale    Json
+  evidence     Json
+
+  status            SwapStatus @default(NEW)
+  dismissedById     String?
+  coverageRequestId String? // set on conversion - the bridge to the existing flow
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, date, kind, dutyAId, dutyBId])
+  @@index([tenantId, date, status])
+  @@index([tenantId, score])
+  @@map("swap_suggestions")
+}
+
+enum SwapKind {
+  ABSORB_HANDOFF // predecessor already rides the train the successor commutes in for
+  SWAP_DUTIES // straight A <-> B exchange
+  FILL_OPEN_DUTY // an unassigned duty closer to someone's home
+}
+
+enum SwapStatus {
+  NEW
+  DISMISSED
+  CONVERTED
+  SUPERSEDED
+}
+
+/// A browser/device push endpoint. Web Push (VAPID) rather than FCM, matching
+/// the approach used across the other GeniriFlow products - no Firebase project
+/// to provision, and it works on iOS 16.4+ once the PWA is installed to the
+/// home screen (which is exactly why /install exists).
+///
+/// One user can have several: phone, tablet, desktop. `endpoint` is the natural
+/// key - the push service issues a fresh one per device per browser.
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userAgent String?
+  isActive  Boolean   @default(true)
+  /// Set when the push service reports the endpoint is gone (404/410).
+  failedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isActive])
+  @@map("push_subscriptions")
+}
+
+model DiscoveryAnswer {
+  id         String  @id @default(cuid())
+  questionId String  @unique
+  section    String
+  question   String
+  answer     String
+  method     String? // typed | voice
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("discovery_answers")
 }

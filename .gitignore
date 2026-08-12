@@ -25,6 +25,11 @@
 *.pem
 .idea/
 
+# real roster files — contain inspector names, worker numbers, Mirs IDs.
+# fixtures/rosters/sample.xlsx is anonymised and stays tracked.
+/fixtures/rosters/*
+!/fixtures/rosters/sample.xlsx
+
 # debug
 npm-debug.log*
 yarn-debug.log*

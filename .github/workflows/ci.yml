@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint & Typecheck
+    name: Lint, Typecheck & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -40,3 +40,11 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      # Unit tests only. lib/roster is pure, so these need no database and no
+      # fixtures. The golden-corpus check (npm run verify:roster) is NOT run
+      # here: it reads the real rosters, which are gitignored because they carry
+      # inspector names, worker numbers and phone numbers. Run it locally, or in
+      # a job with ROSTER_FIXTURE_DIR pointed at a private copy.
+      - name: Unit tests
+        run: npm test

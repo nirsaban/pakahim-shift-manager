@@ -1,6 +1,12 @@
 import * as XLSX from 'xlsx';
 import { prisma } from '../db/prisma';
 import { importedShiftRowSchema, type ImportedShiftRow } from '../validation/shifts';
+import { extractRosterRows, parseSheetDate } from '../roster/sheet';
+import { parseDuty } from '../roster/duty';
+import type { RosterRowInput } from '../roster/types';
+import { dutyKey, persistRoster } from './roster-service';
+import { notify } from './push-service';
+import { he } from '../he';
 
 export interface ImportResult {
   fileId: string;
@@ -10,6 +16,12 @@ export interface ImportResult {
   errorMessage?: string;
   needsConfirmation?: boolean;
   activeCoverageCount?: number;
+  // Roster-engine results. Absent when the roster layer failed - which never
+  // fails the import itself, see the try/catch in importShiftFile.
+  dutyCount?: number;
+  handoffCount?: number;
+  deadheadCrossingCount?: number;
+  rosterError?: string;
 }
 
 export async function getUploadHistory(tenantId: string, limit = 20) {
@@ -20,102 +32,53 @@ export async function getUploadHistory(tenantId: string, limit = 20) {
   });
 }
 
-const HEADER_COL0 = 'מס"ד';
-const HEADER_COL1 = 'שם הפקח';
+// Sheet scanning, date/time parsing and section-name cleaning now live in
+// lib/roster/sheet.ts so the parser and the importer cannot drift apart, and so
+// scripts/verify-roster.ts can exercise the same code with no database.
+//
+// A roster row carries more than a Shift needs; `serial` is threaded through
+// here so each created Shift can be linked back to its parsed Duty.
+type ShiftRowWithSerial = ImportedShiftRow & { serial: string };
 
-function cell(row: unknown[], index: number): string {
-  const value = row[index];
-  return value === undefined || value === null ? '' : String(value).trim();
+/**
+ * What a worker would notice changing about their shift: the times, and the
+ * notes blob (which carries the route text and the shift string). Used to decide
+ * whether an import is worth a push notification.
+ */
+function shiftSignature(shift: { startTime: Date; endTime: Date; notes: string | null }): string {
+  return `${shift.startTime.getTime()}|${shift.endTime.getTime()}|${shift.notes ?? ''}`;
 }
 
-function isBlankRow(row: unknown[]): boolean {
-  return row.every((c) => c === '' || c === undefined || c === null);
-}
+// Narrows the full roster to the rows that can become a Shift: those need an
+// inspector and both times. Rows without them stay in the roster layer as open
+// duties. The `notes` blob is unchanged - the dashboard renders it today.
+function toShiftRows(
+  rosterRows: RosterRowInput[],
+  dropped: number,
+): { rows: ShiftRowWithSerial[]; skipped: number } {
+  const extracted: ShiftRowWithSerial[] = [];
+  let skipped = dropped;
 
-function isBlockHeader(row: unknown[]): boolean {
-  return cell(row, 0) === HEADER_COL0 && cell(row, 1) === HEADER_COL1;
-}
-
-// The sheet name is the roster's date, e.g. "02.08.26" -> 2026-08-02.
-function parseSheetDate(sheetName: string): Date | null {
-  const match = sheetName.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!match) return null;
-  const [, dd, mm, yy] = match;
-  const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-  const date = new Date(year, Number(mm) - 1, Number(dd));
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-// Block header titles look like "פקחים דרום לינק דיזל+חשמלי יום א' 02.08.26" -
-// strip the trailing day-name + date so the same region collapses to one Team.
-function cleanRegionName(raw: string): string {
-  return raw.replace(/\s+יום\s+\S+\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s*$/, '').trim();
-}
-
-// Time cells are inconsistent in the source file: some are plain "HH:MM"
-// strings, some are Excel time-serials that `xlsx` (cellDates:true) turns
-// into Date objects anchored at 1899-12-30 - read with UTC getters, verified
-// against neighboring string-typed times in the same rows.
-function timeOfDayMinutes(value: unknown): number | null {
-  if (value instanceof Date) {
-    return value.getUTCHours() * 60 + value.getUTCMinutes();
-  }
-  if (typeof value === 'string') {
-    const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
-    const hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    if (hours > 23 || minutes > 59) return null;
-    return hours * 60 + minutes;
-  }
-  return null;
-}
-
-function extractRows(rawRows: unknown[][], fallbackRegion: string): { rows: ImportedShiftRow[]; skipped: number } {
-  const extracted: ImportedShiftRow[] = [];
-  let skipped = 0;
-  let currentRegion = fallbackRegion;
-
-  for (const row of rawRows) {
-    if (isBlankRow(row)) continue;
-
-    if (isBlockHeader(row)) {
-      const title = cell(row, 9);
-      currentRegion = title ? cleanRegionName(title) : fallbackRegion;
-      continue;
-    }
-
-    const seq = cell(row, 0);
-    const name = cell(row, 1);
-    const mirs = cell(row, 2);
-    const workerNumber = cell(row, 3);
-    const traineeName = cell(row, 4);
-    const startMinutes = timeOfDayMinutes(row[7]);
-    const endMinutes = timeOfDayMinutes(row[8]);
-    const route = cell(row, 9);
-    const trainSets = cell(row, 10);
-    const note = cell(row, 11);
-
-    if (!name || !workerNumber || startMinutes === null || endMinutes === null) {
+  for (const row of rosterRows) {
+    if (!row.name || !row.workerNumber || row.startMinutes === null || row.endMinutes === null) {
       skipped += 1;
       continue;
     }
 
     const noteParts: string[] = [];
-    if (route) noteParts.push(route);
-    if (trainSets) noteParts.push(`קרונות: ${trainSets}`);
-    if (note) noteParts.push(note);
-    if (mirs && mirs !== '-') noteParts.push(`מירס: ${mirs}`);
-    if (traineeName && traineeName !== '-') noteParts.push(`מתלמד: ${traineeName}`);
-    if (seq.startsWith('משני')) noteParts.push('(רשימת מילואים)');
+    if (row.routeNote) noteParts.push(row.routeNote);
+    if (row.shiftString) noteParts.push(`קרונות: ${row.shiftString}`);
+    if (row.remarks) noteParts.push(row.remarks);
+    if (row.mirs && row.mirs !== '-') noteParts.push(`מירס: ${row.mirs}`);
+    if (row.traineeName && row.traineeName !== '-') noteParts.push(`מתלמד: ${row.traineeName}`);
+    if (row.serial.startsWith('משני')) noteParts.push('(רשימת מילואים)');
 
     const parsed = importedShiftRowSchema.safeParse({
-      region: currentRegion,
-      workerNumber,
-      name,
-      startMinutes,
-      endMinutes,
+      region: row.section,
+      workerNumber: row.workerNumber,
+      name: row.name,
+      startMinutes: row.startMinutes,
+      endMinutes: row.endMinutes,
       notes: noteParts.join(' | '),
     });
 
@@ -124,7 +87,7 @@ function extractRows(rawRows: unknown[][], fallbackRegion: string): { rows: Impo
       continue;
     }
 
-    extracted.push(parsed.data);
+    extracted.push({ ...parsed.data, serial: row.serial });
   }
 
   return { rows: extracted, skipped };
@@ -178,7 +141,8 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
     },
   });
 
-  const { rows, skipped } = extractRows(rawRows, 'כללי');
+  const roster = extractRosterRows(rawRows, 'כללי');
+  const { rows, skipped } = toShiftRows(roster.rows, roster.dropped);
 
   if (rows.length === 0) {
     return failImport(file.id, 'לא נמצאו שורות תקינות לייבוא בקובץ');
@@ -218,6 +182,12 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
     region: string;
     notes: string;
   }[] = [];
+
+  // Lets each created Shift be matched back to the roster line it came from.
+  // Keyed on (worker, start) rather than array position because
+  // createManyAndReturn does not guarantee it returns rows in input order.
+  const dutyKeyByWorkerStart = new Map<string, string>();
+  const workerStartKey = (workerId: string, startTime: Date) => `${workerId}|${startTime.getTime()}`;
 
   for (const row of rows) {
     const teamId = await resolveTeamId(row.region);
@@ -260,26 +230,123 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
       region: row.region,
       notes: row.notes,
     });
+    dutyKeyByWorkerStart.set(workerStartKey(worker.id, startTime), dutyKey(row.region, row.serial));
   }
 
   const errorMessage = skipped > 0 ? `יובאו ${shiftsToCreate.length} משמרות, ${skipped} שורות דולגו` : null;
 
-  await prisma.$transaction([
-    prisma.shift.deleteMany({ where: { tenantId: input.tenantId, date } }),
-    ...shiftsToCreate.map((s) => prisma.shift.create({ data: s })),
-    prisma.shiftFile.update({
-      where: { id: file.id },
-      data: { status: 'IMPORTED', importedShiftCount: shiftsToCreate.length, errorMessage },
-    }),
-  ]);
+  // Snapshot the existing roster for this date BEFORE the destructive replace,
+  // so the notification step can tell a genuine change from a re-upload of the
+  // same file. Without this, every re-upload would push to all ~240 workers.
+  const previousShifts = await prisma.shift.findMany({
+    where: { tenantId: input.tenantId, date },
+    select: { workerId: true, startTime: true, endTime: true, notes: true },
+  });
+  const previousByWorker = new Map(previousShifts.map((s) => [s.workerId, shiftSignature(s)]));
 
-  return {
+  const shiftIdByKey = new Map<string, string>();
+
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.shift.deleteMany({ where: { tenantId: input.tenantId, date } });
+      const created = await tx.shift.createManyAndReturn({
+        data: shiftsToCreate,
+        select: { id: true, workerId: true, startTime: true },
+      });
+      for (const s of created) {
+        const key = dutyKeyByWorkerStart.get(workerStartKey(s.workerId, s.startTime));
+        if (key) shiftIdByKey.set(key, s.id);
+      }
+      await tx.shiftFile.update({
+        where: { id: file.id },
+        data: { status: 'IMPORTED', importedShiftCount: shiftsToCreate.length, errorMessage },
+      });
+    },
+    { timeout: 60_000 },
+  );
+
+  const result: ImportResult = {
     fileId: file.id,
     status: 'IMPORTED',
     importedCount: shiftsToCreate.length,
     skippedCount: skipped,
     errorMessage: errorMessage ?? undefined,
   };
+
+  notifyChangedShifts(date, previousByWorker, shiftsToCreate);
+
+  // The roster engine is additive and must never be able to break the daily
+  // shift import. A grammar surprise or a schema drift here degrades to "no
+  // handoffs today", not to a failed upload.
+  try {
+    const duties = roster.rows.map((r) => parseDuty(r));
+    const persisted = await persistRoster({ tenantId: input.tenantId, date, duties, shiftIdByKey });
+    result.dutyCount = persisted.dutyCount;
+    result.handoffCount = persisted.handoffCount;
+    result.deadheadCrossingCount = persisted.deadheadCrossingCount;
+  } catch (error) {
+    result.rosterError = error instanceof Error ? error.message : String(error);
+    console.error('[roster] failed to build duties/handoffs for', date.toISOString(), error);
+  }
+
+  return result;
+}
+
+/**
+ * Push only to the workers whose shift actually moved.
+ *
+ * Three cases matter to a worker: newly scheduled, times/route changed, or no
+ * longer on the roster. A re-upload of an unchanged file notifies nobody.
+ *
+ * Note this does fan out to everyone on a genuinely new roster day — which is
+ * the intended behaviour ("tell me I'm scheduled"), and only reaches workers who
+ * have actually subscribed a device.
+ */
+function notifyChangedShifts(
+  date: Date,
+  previousByWorker: Map<string, string>,
+  current: { workerId: string; startTime: Date; endTime: Date; notes: string }[],
+): void {
+  const assigned: string[] = [];
+  const changed: string[] = [];
+  const currentWorkers = new Set<string>();
+
+  for (const shift of current) {
+    currentWorkers.add(shift.workerId);
+    const before = previousByWorker.get(shift.workerId);
+    if (before === undefined) assigned.push(shift.workerId);
+    else if (before !== shiftSignature(shift)) changed.push(shift.workerId);
+  }
+
+  const removed = [...previousByWorker.keys()].filter((id) => !currentWorkers.has(id));
+
+  const when = date.toLocaleDateString('he-IL', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const tag = `roster-${date.toISOString().slice(0, 10)}`;
+
+  if (assigned.length > 0) {
+    notify(assigned, {
+      title: he.push.shiftAssigned.title,
+      body: he.push.shiftAssigned.body(when),
+      url: '/dashboard',
+      tag,
+    });
+  }
+  if (changed.length > 0) {
+    notify(changed, {
+      title: he.push.shiftChanged.title,
+      body: he.push.shiftChanged.body(when),
+      url: '/dashboard',
+      tag,
+    });
+  }
+  if (removed.length > 0) {
+    notify(removed, {
+      title: he.push.shiftRemoved.title,
+      body: he.push.shiftRemoved.body(when),
+      url: '/dashboard',
+      tag,
+    });
+  }
 }
 
 async function failImport(fileId: string, message: string): Promise<ImportResult> {
