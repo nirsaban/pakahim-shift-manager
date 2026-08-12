@@ -316,6 +316,12 @@ export const he = {
     notConfigured: 'שירות ההתראות אינו מוגדר בשרת. פנו למנהל המערכת',
     signInFirst: 'יש להתחבר למערכת לפני הפעלת התראות',
     openInstallGuide: 'מדריך התקנה והתראות',
+    serverStatusTitle: 'מצב שירות ההתראות',
+    serverConfigured: 'שירות ההתראות מוגדר ופעיל',
+    serverNotConfigured: 'שירות ההתראות אינו מוגדר — לא יישלחו התראות לאף משתמש',
+    serverNotConfiguredHint:
+      'יש להגדיר VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY ו-VAPID_SUBJECT בקובץ .env.prod בשרת ולהפעיל מחדש את הקונטיינר',
+    subscribedDevices: 'מכשירים רשומים',
   },
 
   // Push notification copy. Kept terse - these land on a lock screen.

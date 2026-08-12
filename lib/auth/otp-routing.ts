@@ -22,7 +22,10 @@ function redirectMap(): Map<string, string> {
   if (parsed) return parsed;
 
   const map = new Map<string, string>();
-  const raw = process.env.OTP_REDIRECT_MAP?.trim();
+  // Docker Compose `env_file` does not shell-parse values, so a quoted entry can
+  // arrive with its quotes attached. Strip them rather than silently parsing
+  // `"a@x.com` as an address and dropping the redirect.
+  const raw = process.env.OTP_REDIRECT_MAP?.trim().replace(/^["']|["']$/g, '');
 
   if (raw) {
     for (const pair of raw.split(',')) {

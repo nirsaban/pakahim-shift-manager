@@ -61,6 +61,7 @@ import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
 import { DirectAssignForm } from './_components/DirectAssignForm';
 import { SwapSuggestionActions } from './_components/SwapSuggestionActions';
 import { NotificationsPrompt } from './_components/NotificationsPrompt';
+import { PushServiceStatus } from './_components/PushServiceStatus';
 
 function StatTile({
   label,
@@ -539,6 +540,8 @@ async function AdminDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PushServiceStatus tenantId={tenantId} />
+
       <SwapSuggestionsPanel tenantId={tenantId} />
 
       <Card>

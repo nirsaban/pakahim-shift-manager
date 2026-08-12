@@ -42,6 +42,14 @@ describe('OTP delivery routing', () => {
     expect(resolveOtpRecipient('b@x.com')).toBe('b@x.com');
   });
 
+  // Docker Compose env_file does not shell-parse, so quotes can survive into
+  // the value verbatim.
+  it('tolerates a value that arrived with its quotes attached', () => {
+    withMap('"a@x.com=owner@x.com,b@x.com=owner@x.com"');
+    expect(resolveOtpRecipient('a@x.com')).toBe('owner@x.com');
+    expect(resolveOtpRecipient('b@x.com')).toBe('owner@x.com');
+  });
+
   it('treats a self-mapping as no redirect', () => {
     withMap('a@x.com=a@x.com');
     expect(resolveOtpRecipient('a@x.com')).toBe('a@x.com');
