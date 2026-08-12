@@ -29,7 +29,9 @@ const ADMIN_WORKER_NUMBER = process.env.BOOTSTRAP_ADMIN_WORKER_NUMBER ?? '900001
 // redirect needed.
 const WORKER_EMAIL = process.env.BOOTSTRAP_WORKER_EMAIL ?? 'yakirsaban47+worker@gmail.com';
 const WORKER_NAME = process.env.BOOTSTRAP_WORKER_NAME ?? 'יקיר סבן (פקח)';
-const WORKER_NUMBER = process.env.BOOTSTRAP_WORKER_NUMBER ?? '900002';
+// Login accepts any non-empty string, not just digits — a short ID is easier
+// to type on a phone than a six-digit payroll number.
+const WORKER_NUMBER = process.env.BOOTSTRAP_WORKER_NUMBER ?? 'AD-1';
 
 const TEAM_NAME = process.env.BOOTSTRAP_TEAM_NAME ?? 'פקחים';
 
@@ -115,7 +117,10 @@ async function main(): Promise<void> {
   console.log('\nLogin is by worker number. Both codes land in the same inbox:');
   console.log(`  admin  ${ADMIN_WORKER_NUMBER} -> ${ADMIN_EMAIL}`);
   console.log(`  worker ${WORKER_NUMBER} -> ${WORKER_EMAIL}`);
-  console.log('\nNo OTP_REDIRECT_MAP needed — the plus-alias delivers to the same mailbox.');
+  console.log('\nTo deliver every code to more than one mailbox, set (unquoted):');
+  console.log(
+    `  OTP_REDIRECT_MAP=${ADMIN_EMAIL}=<a>;<b>,${WORKER_EMAIL}=<a>;<b>`,
+  );
 }
 
 main().catch(async (e) => {

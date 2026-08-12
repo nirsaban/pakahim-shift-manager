@@ -13,7 +13,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendOtpEmail(to: string, code: string): Promise<void> {
+// `to` may be several mailboxes: one code can be delivered to more than one
+// person (see lib/auth/otp-routing.ts). Nodemailer accepts an array directly.
+export async function sendOtpEmail(to: string | string[], code: string): Promise<void> {
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
