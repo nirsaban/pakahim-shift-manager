@@ -43,6 +43,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 # schema.prisma has no datasource url — Prisma 7 keeps that in prisma.config.ts,
 # which `prisma migrate deploy` needs at runtime to find DATABASE_URL.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+# Operational scripts run via `docker exec` on the server: seeding reference
+# data, bootstrapping a clean database, sending a test push. Without these the
+# container can serve traffic but cannot be administered.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# lib/ and tsconfig are needed because those scripts import the app's services
+# and rely on the `@/` path alias; the standalone bundle only contains the
+# traced server build, not the source tree.
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --chown=nextjs:nodejs docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
