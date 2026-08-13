@@ -7,6 +7,7 @@ import type { RosterRowInput } from './types';
 function row(partial: Partial<RosterRowInput> & { shiftString: string }): RosterRowInput {
   return {
     rowIndex: 0,
+    blockIndex: 0,
     section: 'פקחים דרום',
     sectionDate: null,
     serial: '1',

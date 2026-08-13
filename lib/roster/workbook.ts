@@ -5,7 +5,7 @@
 // without a database.
 
 import * as XLSX from 'xlsx';
-import { extractRosterRows, parseSheetDate } from './sheet';
+import { extractRosterRows, parseSheetDates, resolveBlockDate } from './sheet';
 import type { RosterRowInput } from './types';
 
 export interface RosterDay {
@@ -23,13 +23,16 @@ export interface WorkbookScan {
 }
 
 /**
- * The department ships multi-day rosters in two shapes, and this handles both:
- * one sheet per day (sheet named `DD.MM.YY`), and several dated blocks stacked
- * inside a single sheet — each block header title carries its own date, the same
- * date `cleanSectionName` strips to keep section names stable across days.
+ * The department ships multi-day rosters in three shapes, and this handles all:
+ * one sheet per day (sheet named `DD.MM.YY`); several dated blocks stacked
+ * inside a single sheet, each block header title carrying its own date; and a
+ * sheet named for a span (`14.08.26-15.08.26`) whose blocks name their weekday
+ * but print a stale date left over from the file they were copied from.
  *
- * A row's own block header wins over the sheet name: it is the more specific
- * statement, and it is the only per-day signal the single-sheet layout has.
+ * A row's own block header wins over the sheet name — it is the more specific
+ * statement — but only while it is credible: `resolveBlockDate` drops a printed
+ * date that contradicts its own weekday or falls outside the span the sheet name
+ * declares, and falls back to the weekday, then the sheet, then the block above.
  *
  * Rows we cannot date are NOT guessed at when the workbook dates anything else.
  * Every import is a destructive replace of its date, so picking the wrong day
@@ -53,10 +56,21 @@ export function groupWorkbookByDate(workbook: XLSX.WorkBook, today: Date = new D
     if (roster.rows.length === 0) continue;
     dropped += roster.dropped;
 
-    const sheetDate = parseSheetDate(sheetName);
+    const sheetDates = parseSheetDates(sheetName);
 
-    for (const row of roster.rows) {
-      const date = row.sectionDate ?? sheetDate;
+    // Resolved once per block, in sheet order, so an undated block can continue
+    // the one above it.
+    const dateByBlock: (Date | null)[] = [];
+    let previous: Date | null = null;
+    for (const block of roster.blocks) {
+      const date = resolveBlockDate(block, sheetDates, previous);
+      dateByBlock.push(date);
+      if (date) previous = date;
+    }
+
+    for (const source of roster.rows) {
+      const date = dateByBlock[source.blockIndex] ?? (sheetDates.length === 1 ? sheetDates[0] : null);
+      const row = { ...source, sectionDate: date };
       if (!date) {
         undated.push(row);
         continue;
