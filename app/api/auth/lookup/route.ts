@@ -27,8 +27,11 @@ const RATE_WINDOW_SECONDS = 15 * 60;
 export async function POST(request: NextRequest) {
   const limit = await rateLimit('lookup', callerIp(request), RATE_LIMIT, RATE_WINDOW_SECONDS);
   if (!limit.ok) {
+    // `reason` matters to the client: it advances to the OTP step on a cooldown
+    // 429 (a code really was just sent) but must not on this one, where nothing
+    // was sent at all.
     return NextResponse.json(
-      { error: he.auth.tooManyAttempts },
+      { error: he.auth.tooManyAttempts, reason: 'rate_limited' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
     );
   }
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
 
   const result = await requestOtp(user.email);
   if (!result.ok) {
-    return NextResponse.json({ error: he.auth.otpCooldown }, { status: 429 });
+    return NextResponse.json({ error: he.auth.otpCooldown, reason: 'cooldown' }, { status: 429 });
   }
 
   // Best-effort: the code is already stored (and the dev fallback code always

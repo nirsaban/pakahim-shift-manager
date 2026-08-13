@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const limit = await rateLimit('register', callerIp(request), RATE_LIMIT, RATE_WINDOW_SECONDS);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: he.auth.tooManyAttempts },
+      { error: he.auth.tooManyAttempts, reason: 'rate_limited' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
     );
   }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   const subject = registrationOtpSubject(tenantId, workerNumber);
   const otp = await requestOtp(subject);
   if (!otp.ok) {
-    return NextResponse.json({ error: he.auth.otpCooldown }, { status: 429 });
+    return NextResponse.json({ error: he.auth.otpCooldown, reason: 'cooldown' }, { status: 429 });
   }
 
   // Stored only after the OTP is issued, so a cooldown rejection cannot quietly

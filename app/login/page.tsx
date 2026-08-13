@@ -47,7 +47,12 @@ export default function LoginPage() {
         body: JSON.stringify({ workerNumber }),
       });
       const data = await res.json();
-      if (res.status === 429) {
+      // A cooldown means a code went out moments ago and is still valid, so the
+      // OTP step is the right place to land. Being rate limited is not that -
+      // nothing was sent, and silently showing a code box would strand the user.
+      if (res.status === 429 && data.reason === 'cooldown') {
+        setOtpChannels([]);
+        setRegistering(false);
         setStep('otp');
         return;
       }

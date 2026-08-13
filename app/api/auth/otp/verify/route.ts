@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const limit = await rateLimit('otp-verify', callerIp(request), RATE_LIMIT, RATE_WINDOW_SECONDS);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: he.auth.tooManyAttempts },
+      { error: he.auth.tooManyAttempts, reason: 'rate_limited' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
     );
   }
