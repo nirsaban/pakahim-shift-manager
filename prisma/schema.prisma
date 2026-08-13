@@ -641,3 +641,32 @@ model DiscoveryAnswer {
 
   @@map("discovery_answers")
 }
+
+/// Baileys pairing state for the single WhatsApp number the app sends OTPs
+/// from. Persisted so a container restart re-hydrates the session instead of
+/// forcing an admin to re-scan the QR on every deploy.
+///
+/// Single-row by construction: `id` is pinned to WHATSAPP_SESSION_ID. The creds
+/// blob is Baileys' own auth state (credentials + signal keys) serialised
+/// through BufferJSON, which is why it is opaque Json rather than columns.
+model WhatsAppSession {
+  id String @id
+
+  creds Json?
+
+  status      WhatsAppStatus @default(PENDING)
+  phoneNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("whatsapp_sessions")
+}
+
+enum WhatsAppStatus {
+  PENDING
+  QR
+  CONNECTED
+  DISCONNECTED
+  LOGGED_OUT
+}

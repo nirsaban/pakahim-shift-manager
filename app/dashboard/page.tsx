@@ -608,6 +608,12 @@ async function AdminDashboard() {
               {he.admin.manageTeams}
             </Button>
           </Link>
+          <Link href="/admin/whatsapp">
+            <Button size="lg" variant="secondary">
+              <MessageCircle size={17} />
+              {he.whatsapp.title}
+            </Button>
+          </Link>
         </div>
       </Card>
 

@@ -15,31 +15,38 @@ interface OtpRecord {
   attempts: number;
 }
 
-function otpKey(email: string): string {
-  return `otp:${email.toLowerCase()}`;
+/**
+ * What the code is issued against. For a returning worker this is their account
+ * email; for a first-time registration the account has no email yet, so it is a
+ * `reg:{tenantId}:{workerNumber}` subject instead (see pending-registration.ts).
+ * Either way the caller decides - this module only needs it to be stable and
+ * not attacker-chosen.
+ */
+function otpKey(subject: string): string {
+  return `otp:${subject.toLowerCase()}`;
 }
 
-function cooldownKey(email: string): string {
-  return `otp:cooldown:${email.toLowerCase()}`;
+function cooldownKey(subject: string): string {
+  return `otp:cooldown:${subject.toLowerCase()}`;
 }
 
 export type RequestOtpResult = { ok: true; code: string } | { ok: false; reason: 'cooldown' };
 
-export async function requestOtp(email: string): Promise<RequestOtpResult> {
-  const onCooldown = await redis.exists(cooldownKey(email));
+export async function requestOtp(subject: string): Promise<RequestOtpResult> {
+  const onCooldown = await redis.exists(cooldownKey(subject));
   if (onCooldown) return { ok: false, reason: 'cooldown' };
 
   const code = String(randomInt(100000, 1000000));
   const record: OtpRecord = { code, attempts: 0 };
-  await redis.set(otpKey(email), JSON.stringify(record), 'EX', OTP_TTL_SECONDS);
-  await redis.set(cooldownKey(email), '1', 'EX', REQUEST_COOLDOWN_SECONDS);
+  await redis.set(otpKey(subject), JSON.stringify(record), 'EX', OTP_TTL_SECONDS);
+  await redis.set(cooldownKey(subject), '1', 'EX', REQUEST_COOLDOWN_SECONDS);
   return { ok: true, code };
 }
 
-export async function verifyOtp(email: string, code: string): Promise<boolean> {
+export async function verifyOtp(subject: string, code: string): Promise<boolean> {
   if (DEV_FALLBACK_ENABLED && code === DEV_FALLBACK_OTP) return true;
 
-  const key = otpKey(email);
+  const key = otpKey(subject);
   const raw = await redis.get(key);
   if (!raw) return false;
 

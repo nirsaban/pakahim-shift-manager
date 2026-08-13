@@ -2,11 +2,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getDefaultTenantId } from '@/lib/db/tenant';
 import { registerSchema } from '@/lib/validation/auth';
-import { respondWithSession } from '@/lib/auth/login-response';
-import { resolveHomeStationForCity } from '@/lib/services/station-service';
+import { requestOtp } from '@/lib/auth/otp';
+import { deliverOtp } from '@/lib/auth/otp-delivery';
+import {
+  registrationOtpSubject,
+  savePendingRegistration,
+} from '@/lib/auth/pending-registration';
+import { callerIp, rateLimit } from '@/lib/auth/rate-limit';
 import { he } from '@/lib/he';
 
+/**
+ * Step one of a first-time registration: validate the details, then send a code.
+ *
+ * This route used to write the worker's details straight to the User row and
+ * return a live session, which meant knowing a worker number was enough to
+ * claim that account. Nothing is persisted to the user now - the submission
+ * waits in Redis until /api/auth/otp/verify proves the submitter can read the
+ * code at the address they gave.
+ */
+
+// Registration is once per worker, but onboarding happens in groups on a shared
+// depot wifi or behind carrier CGNAT, so the limit has to tolerate a roomful of
+// workers signing up at once while still refusing a scripted sweep.
+const RATE_LIMIT = 15;
+const RATE_WINDOW_SECONDS = 15 * 60;
+
 export async function POST(request: NextRequest) {
+  const limit = await rateLimit('register', callerIp(request), RATE_LIMIT, RATE_WINDOW_SECONDS);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: he.auth.tooManyAttempts },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
@@ -34,15 +63,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: he.error.emailTaken }, { status: 409 });
   }
 
-  // Derive a home station from the city so swap scoring has something to work
-  // with from day one. An unrecognised city resolves to null and is queued for
-  // admin review rather than guessed - see station-service.
-  const { stationId, source } = await resolveHomeStationForCity(city);
+  const subject = registrationOtpSubject(tenantId, workerNumber);
+  const otp = await requestOtp(subject);
+  if (!otp.ok) {
+    return NextResponse.json({ error: he.auth.otpCooldown }, { status: 429 });
+  }
 
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: { firstName, lastName, city, email, phone, homeStationId: stationId, homeStationSource: source },
+  // Stored only after the OTP is issued, so a cooldown rejection cannot quietly
+  // replace the details a previous, still-verifiable code belongs to.
+  await savePendingRegistration(tenantId, workerNumber, {
+    firstName,
+    lastName,
+    city,
+    email,
+    phone,
   });
 
-  return respondWithSession(updated);
+  const channels = await deliverOtp({ code: otp.code, email, phone });
+
+  return NextResponse.json({ status: 'otp_sent', channels });
 }

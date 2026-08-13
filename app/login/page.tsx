@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { ArrowRight, MessageCircle, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { he } from '@/lib/he';
 import { Brand } from '../_components/Brand';
 import { Card } from '../_components/ui/Card';
@@ -25,6 +25,12 @@ export default function LoginPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Which channel actually took the code, so the OTP step can point the worker
+  // at WhatsApp rather than at an inbox the code never reached.
+  const [otpChannels, setOtpChannels] = useState<string[]>([]);
+  // First-time registrations get an extra line explaining why a code appeared
+  // at all - previously this step logged them straight in.
+  const [registering, setRegistering] = useState(false);
 
   function updateRegisterField<K extends keyof typeof registerForm>(key: K, value: string) {
     setRegisterForm((prev) => ({ ...prev, [key]: value }));
@@ -57,6 +63,8 @@ export default function LoginPage() {
         }));
         setStep('register');
       } else {
+        setOtpChannels(data.channels ?? []);
+        setRegistering(false);
         setStep('otp');
       }
     } catch {
@@ -81,8 +89,12 @@ export default function LoginPage() {
         setError(data.error ?? he.error.serverError);
         return;
       }
-      router.push('/dashboard');
-      router.refresh();
+      // Registration no longer logs anyone in on its own - the details are held
+      // server-side until the code sent to them comes back verified.
+      setOtpChannels(data.channels ?? []);
+      setRegistering(true);
+      setOtp('');
+      setStep('otp');
     } catch {
       setError(he.error.networkError);
     } finally {
@@ -199,9 +211,18 @@ export default function LoginPage() {
 
         {step === 'otp' && (
           <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-info-bg px-3.5 py-2.5 text-sm text-info-fg">
-              <ShieldCheck size={16} className="shrink-0" />
-              {he.auth.emailOtpSent}
+            <div className="flex flex-col gap-1 rounded-[var(--radius-md)] bg-info-bg px-3.5 py-2.5 text-sm text-info-fg">
+              <span className="flex items-center gap-2">
+                {otpChannels.includes('whatsapp') ? (
+                  <MessageCircle size={16} className="shrink-0" />
+                ) : (
+                  <ShieldCheck size={16} className="shrink-0" />
+                )}
+                {otpChannels.includes('whatsapp')
+                  ? he.auth.otpSentWhatsapp
+                  : he.auth.otpSentEmail}
+              </span>
+              {registering && <span className="text-xs">{he.auth.registerOtpNotice}</span>}
             </div>
             <Field label={he.auth.emailOtp}>
               <Input

@@ -47,6 +47,10 @@ export const he = {
     passwordConfirm: 'אימות סיסמה',
     invalidCredentials: 'פרטים שגויים',
     sessionExpired: 'ההפעלה פקעה, התחבר שוב',
+    tooManyAttempts: 'יותר מדי נסיונות, נסה שוב מאוחר יותר',
+    otpSentWhatsapp: 'קוד נשלח אליך בוואטסאפ',
+    otpSentEmail: 'קוד נשלח לדוא"ל שלך',
+    registerOtpNotice: 'שלחנו קוד אימות כדי לוודא שהפרטים שהזנת שלך',
   },
 
   // Onboarding
@@ -231,6 +235,26 @@ export const he = {
   },
 
   // Errors
+  whatsapp: {
+    title: 'חיבור וואטסאפ',
+    subtitle: 'סרוק את הקוד כדי לחבר את המספר ששולח קודי אימות',
+    statusLabel: 'סטטוס',
+    statusPending: 'ממתין לחיבור',
+    statusQr: 'ממתין לסריקה',
+    statusConnected: 'מחובר',
+    statusDisconnected: 'מנותק, מתחבר מחדש',
+    statusLoggedOut: 'לא מחובר',
+    connectedAs: 'מחובר כמספר',
+    connect: 'התחל חיבור',
+    reconnect: 'חבר מחדש',
+    disconnect: 'נתק',
+    refreshingQr: 'מרענן קוד...',
+    scanInstructions: 'וואטסאפ ← הגדרות ← מכשירים מקושרים ← קישור מכשיר',
+    qrExpired: 'הקוד פג תוקף, לחץ לרענון',
+    disconnectConfirm: 'לנתק את חיבור הוואטסאפ? יהיה צורך לסרוק קוד מחדש.',
+    otpFallbackNotice: 'כשאין חיבור, קודי האימות נשלחים בדוא"ל בלבד.',
+  },
+
   error: {
     required: 'שדה חובה',
     invalidEmail: 'דוא"ל לא תקין',
