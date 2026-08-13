@@ -60,21 +60,44 @@ importShiftFile(file, tenantId, uploadedBy)
 
 ## Multi-day workbooks (`lib/roster/workbook.ts`)
 
-The department also sends rosters covering several days at once, in two shapes. Both are
+The department also sends rosters covering several days at once, in three shapes. All are
 handled by `groupWorkbookByDate(workbook)`, which is pure (no prisma, no Next runtime) and
 tested in `lib/roster/workbook.test.ts`:
 
-1. **One sheet per day** — sheet named `DD.MM.YY`, read by `parseSheetDate`.
+1. **One sheet per day** — sheet named `DD.MM.YY`, read by `parseSheetDates`.
 2. **Several dated blocks in one sheet** — each region-block header carries its own date
-   (`פקחים דרום יום ה' 13.08.26`), read by `parseSectionDate` into
-   `RosterRowInput.sectionDate`. A block header's date always beats the sheet name, since
-   it is the more specific claim.
+   (`פקחים דרום יום ה' 13.08.26`), read by `parseSectionDate`.
+3. **A sheet named for a span** — `14.08.26-15.08.26`, the weekend file. Its blocks are
+   copied off an older file and still print that file's date (`יום ו' 27.06.26` sitting on
+   top of the 14.08 roster), so the printed date cannot be trusted here. What *is* retyped
+   is the weekday wording — `יום ו'`, `מוצ"ש` — and that is what dates the blocks.
 
-Rules that follow from the two shapes coexisting:
+`resolveBlockDate` reconciles those signals per block, in this order:
+
+1. The printed date, **unless** it contradicts its own weekday wording (27.06.26 is a
+   Saturday, so `יום ו'` cannot be it) or falls outside a span the sheet name declares.
+   Either makes it a leftover from the file this one was copied from.
+2. Otherwise the weekday wording picks the matching day out of the sheet's span —
+   `מוצ"ש` counts as Saturday, since those shifts start ~20:30 and the importer already
+   rolls a past-midnight end forward on its own.
+3. Otherwise a single-date sheet name dates everything in it, as it always has.
+4. Otherwise, inside a span, a block stating **nothing at all** (the `פקחים ב"ש` blocks
+   carry neither date nor weekday) continues the block above it. Not extended to a block
+   whose printed date was just rejected — there the file contradicts itself, and merging
+   it into the previous day would destructively overwrite a real roster.
+
+Rules that follow from the shapes coexisting:
 
 - The same date appearing in more than one sheet is **merged**, not imported twice.
-- `cleanSectionName` strips the date from a block title so `פקחים דרום` stays one stable
-  section name across every day in the file.
+- The serial column is headed **both** `מס"ד` and `מס' סידור`, mixed within one file (the
+  weekend file uses the first spelling on block 1 and the second on blocks 2–4).
+  `isBlockHeader` accepts either, quote marks normalised. Missing a header does not just
+  lose that row — it loses the block's section *and* its date, folding the next day into
+  the previous one.
+- `cleanSectionName` strips the date **and** the day wording (`יום ו'`, `מוצ"ש`, `לו"ז`)
+  from a block title so `פקחים דרום` stays one stable section name across every day in the
+  file. Sections become team names on import, so leaving `מוצ"ש` on would fork the
+  Saturday-night roster into a team of its own.
 - A row with no date signal anywhere is **dropped, not guessed** — reported to the admin
   as `importUndatedRows` — unless the *whole* workbook is undated, in which case the
   original single-day fallback (today) still applies.

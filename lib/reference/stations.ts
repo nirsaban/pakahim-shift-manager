@@ -28,7 +28,7 @@ export const STATIONS: StationRef[] = [
   { code: 'merkazit_hamifratz', nameHe: 'מרכזית המפרץ', aliases: ['merkazit_hamifratz', 'mifratz', 'מרכזית המפרץ'] },
   { code: 'haifa_merkaz', nameHe: 'חיפה מרכז השמונה', aliases: ['haifa_merkaz', 'haifa', 'חיפה מרכז השמונה', 'חיפה מרכז'] },
   { code: 'haifa_bat_galim', nameHe: 'חיפה בת גלים', aliases: ['haifa_bat_galim', 'bat_galim', 'חיפה בת גלים'] },
-  { code: 'haifa_hof_hacarmel', nameHe: 'חיפה חוף הכרמל', aliases: ['haifa_hof_hacarmel', 'hof_hacarmel', 'חיפה חוף הכרמל', 'חוף הכרמל'] },
+  { code: 'haifa_hof_hacarmel', nameHe: 'חיפה חוף הכרמל', aliases: ['haifa_hof_hacarmel', 'hof_hacarmel', 'hof_carmel', 'חיפה חוף הכרמל', 'חוף הכרמל'] },
   { code: 'atlit', nameHe: 'עתלית', aliases: ['atlit', 'עתלית'] },
 
   // --- Jezreel / Beit She'an branch ---

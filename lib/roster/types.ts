@@ -121,12 +121,18 @@ export type TransportMode = 'TAXI' | 'RAIL' | 'NONE';
 
 export interface RosterRowInput {
   rowIndex: number;
+  /** Which block header this row sits under, -1 above the first one. */
+  blockIndex: number;
   section: string;
   /**
-   * The date this row's block header claims, when it states one. A workbook can
-   * carry several days either as one sheet per day or as several dated blocks
-   * inside a single sheet — this is what makes the second layout importable.
-   * Null when the header has no date; the importer falls back to the sheet name.
+   * The date this row belongs to, once the block header and the sheet name have
+   * been reconciled (see `resolveBlockDate`). A workbook can carry several days
+   * either as one sheet per day or as several dated blocks inside a single sheet
+   * — this is what makes the second layout importable. Null when nothing in the
+   * file dates the row; the importer then reports it rather than guessing.
+   *
+   * As returned by `extractRosterRows` this is only what the block title printed,
+   * which may be stale — `groupWorkbookByDate` is what resolves it.
    */
   sectionDate: Date | null;
   serial: string;
