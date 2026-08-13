@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma';
 import { detectHandoffs } from '../roster/handoff';
+import { assignShiftIds, dedupeDutiesByIdentity } from '../roster/identity';
 import { generateSwapSuggestions, type WorkerHome } from '../roster/swaps';
 import type { ParsedDuty } from '../roster/types';
 
@@ -20,6 +21,8 @@ export interface PersistRosterResult {
   swapSuggestionCount: number;
   workersWithHomeStation: number;
   parseFailureCount: number;
+  /** Roster lines dropped for claiming a (section, serial) an earlier line took. */
+  duplicateDutyCount: number;
 }
 
 /**
@@ -53,9 +56,23 @@ export function dutyKey(section: string, serial: string): string {
  * would resurface advice a scheduler already rejected.
  */
 export async function persistRoster(input: PersistRosterInput): Promise<PersistRosterResult> {
-  const { tenantId, date, duties, shiftIdByKey } = input;
+  const { tenantId, date, shiftIdByKey } = input;
 
-  const dutyData: Prisma.DutyCreateManyInput[] = duties.map((d) => ({
+  // Deduplicate BEFORE deriving anything: a repeated (section, serial) violates
+  // Duty's own uniqueness and used to abort the entire date's roster layer, so a
+  // day would end up with imported shifts and no duties, handoffs or swaps
+  // behind them. Handoffs and swaps are then derived from the surviving set, so
+  // they can never point at a line that was never stored.
+  const { kept: duties, duplicates } = dedupeDutiesByIdentity(input.duties);
+  if (duplicates.length > 0) {
+    console.warn(
+      `[roster] ${duplicates.length} duplicate duty identities on ${date.toISOString().slice(0, 10)}:`,
+      duplicates.map((d) => dutyKey(d.section, d.serial)).join(', '),
+    );
+  }
+  const shiftIds = assignShiftIds(duties, shiftIdByKey);
+
+  const dutyData: Prisma.DutyCreateManyInput[] = duties.map((d, i) => ({
     tenantId,
     date,
     section: d.section,
@@ -81,7 +98,7 @@ export async function persistRoster(input: PersistRosterInput): Promise<PersistR
     finalStation: d.finalStation,
     startTransport: d.startTransport,
     endTransport: d.endTransport,
-    shiftId: shiftIdByKey?.get(dutyKey(d.section, d.serial)) ?? null,
+    shiftId: shiftIds[i],
   }));
 
   const handoffs = detectHandoffs(duties);
@@ -196,6 +213,7 @@ export async function persistRoster(input: PersistRosterInput): Promise<PersistR
         swapSuggestionCount: swapData.length,
         workersWithHomeStation: [...homesByWorkerNumber.values()].filter((h) => h.homeStation).length,
         parseFailureCount: duties.filter((d) => d.parseStatus === 'FAILED').length,
+        duplicateDutyCount: duplicates.length,
       };
     },
     { timeout: 60_000 },

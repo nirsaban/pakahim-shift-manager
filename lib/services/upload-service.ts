@@ -17,6 +17,8 @@ export interface DayImportResult {
   dutyCount?: number;
   handoffCount?: number;
   deadheadCrossingCount?: number;
+  /** Roster lines that repeated a (section, serial) an earlier line already took. */
+  duplicateDutyCount?: number;
   rosterError?: string;
 }
 
@@ -284,6 +286,11 @@ export async function importShiftFile(input: ImportInput): Promise<ImportResult>
   const notes: string[] = [];
   if (skippedCount > 0) notes.push(he.admin.importSkippedRows(importedCount, skippedCount));
   if (scan.undated > 0) notes.push(he.admin.importUndatedRows(scan.undated));
+  // A repeated מס״ד is a fault in the source file, not in the import - name it,
+  // because the alternative (before this was handled) was losing the whole day's
+  // parsed roster to a unique-constraint failure with nothing said about why.
+  const duplicateDutyCount = days.reduce((sum, d) => sum + (d.duplicateDutyCount ?? 0), 0);
+  if (duplicateDutyCount > 0) notes.push(he.admin.importDuplicateDuties(duplicateDutyCount));
   const errorMessage = notes.length > 0 ? notes.join(' · ') : null;
 
   await prisma.shiftFile.update({
@@ -421,6 +428,7 @@ async function importDay(
     result.dutyCount = persisted.dutyCount;
     result.handoffCount = persisted.handoffCount;
     result.deadheadCrossingCount = persisted.deadheadCrossingCount;
+    result.duplicateDutyCount = persisted.duplicateDutyCount;
   } catch (error) {
     result.rosterError = error instanceof Error ? error.message : String(error);
     console.error('[roster] failed to build duties/handoffs for', date.toISOString(), error);

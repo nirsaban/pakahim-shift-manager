@@ -227,6 +227,8 @@ export const he = {
     importNoValidRows: 'לא נמצאו שורות תקינות לייבוא בקובץ',
     importSkippedRows: (imported: number, skipped: number) =>
       `יובאו ${imported} משמרות, ${skipped} שורות דולגו`,
+    importDuplicateDuties: (count: number) =>
+      `${count} שורות עם מס״ד כפול באותו אזור לא נשמרו בשכבת התורנות - יש לבדוק את הקובץ`,
     importUndatedRows: (count: number) =>
       `${count} שורות ללא תאריך מזוהה לא יובאו - יש לוודא ששם הגיליון או כותרת הטבלה כוללים תאריך`,
     importedDaysTitle: 'ימים שיובאו',
