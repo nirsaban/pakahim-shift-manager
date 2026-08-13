@@ -27,7 +27,13 @@ and `listIncidentsForUser(userId)`. **New:** `listPendingCoverageRequests(teamId
 4. **Pending coverage requests** `NEW` — count/summary card linking into
    `coverage-approvals.md`; a lead who leads multiple teams sees pending requests across
    all of them, same plural-teamId pattern as every other section here.
-5. **Empty states** for each section independently (a lead with no pending incidents but
+5. **Team workload** `NEW` (`TeamWorkloadCard`) — one row per `PAKAHIM` across every led
+   team over a −14/+14 day window, sorted heaviest first: shift count, total hours, night
+   shifts, and a warning badge counting rest gaps under the legal 8 hours. Members with no
+   shifts stay in the list rather than being filtered out — an empty row is the most
+   actionable one there is when balancing a roster. Same `computeWorkload` used by the
+   worker's own card (`worker-dashboard.md` state 8), so the two can never disagree.
+6. **Empty states** for each section independently (a lead with no pending incidents but
    3 pending coverage requests sees exactly that, not a blanket "nothing to do").
 
 ## Actions & side effects

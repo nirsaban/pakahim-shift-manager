@@ -32,7 +32,11 @@ export async function POST(request: NextRequest) {
 
   if (result.needsConfirmation) {
     return NextResponse.json(
-      { needsConfirmation: true, activeCoverageCount: result.activeCoverageCount },
+      {
+        needsConfirmation: true,
+        activeCoverageCount: result.activeCoverageCount,
+        coverageByDate: result.coverageByDate,
+      },
       { status: 409 },
     );
   }
@@ -43,5 +47,8 @@ export async function POST(request: NextRequest) {
     ok: true,
     importedCount: result.importedCount,
     skippedCount: result.skippedCount,
+    // One upload can cover several roster dates; the admin needs to see that each
+    // day they expected actually landed, not just a single total.
+    days: result.days,
   });
 }

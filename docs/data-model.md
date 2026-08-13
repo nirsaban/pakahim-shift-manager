@@ -158,7 +158,8 @@ Upload audit record, one per `/admin/upload` submission.
 | `uploadedBy` | `String` | `User.id`, not a real FK. |
 | `status` | `FileStatus` | `PENDING \| VALIDATED \| IMPORTED \| FAILED` |
 | `errorMessage` | `String?` | |
-| `importedShiftCount` | `Int?` | |
+| `importedShiftCount` | `Int?` | Across every date in the file, not per date. |
+| `importedDates` | `DateTime[]` | Every roster date this one file wrote. An upload is not one date — a workbook can carry a whole week (see `excel-import.md`), so the audit row has to say which days it actually replaced. |
 | `createdAt` | `DateTime` | |
 
 ## `DiscoveryAnswer`

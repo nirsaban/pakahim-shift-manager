@@ -43,6 +43,7 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 
 ### Excel data source
 - Confirmed: **one sheet**, internally divided into sections (matches the real multi-region-table format already handled by `lib/services/upload-service.ts`, see [[real-roster-import-2026-08-02|memory]]).
+- Extended 2026-08-13: a file may now carry **several days**, either one sheet per day or several dated blocks in one sheet. The daily single-sheet file above is the single-day case of the same grammar, unchanged. See `docs/modules/excel-import.md` § "Multi-day workbooks".
 
 ### Roadmap — what matters after MVP
 - Let schedulers/team leads ("המשבצים... או הפטיש") push updates, שינויים (changes) and בלת״ם (unplanned events) into the app directly, and have leave/sick-day constraints update automatically — instead of the current phone-call-heavy workflow.

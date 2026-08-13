@@ -29,11 +29,19 @@ complete detail on what gets parsed and written.
    that date's shifts have an `APPROVED` `CoverageRequest`/populated `replacementId`, and
    if so show an explicit warning ("this will remove N active coverage assignments") 
    before letting the upload proceed — not a silent cascade-delete.
+   **Multi-day:** the 409 body carries `coverageByDate`, and the warning lists each
+   affected day by name — a weekly file can wipe coverage on days the admin never
+   considered, so one aggregate number would understate what they are agreeing to.
+7. **Per-day import summary** `NEW` — success renders `ImportResult.days`: one row per
+   roster date, with its imported and skipped counts. A single-day file shows one row, so
+   there is no separate UI mode. This is how an admin confirms every day they expected
+   actually landed.
 
 ## Actions & side effects
 
-Submit → `POST /api/uploads` → `importShiftFile` (see `excel-import.md`) → replaces that
-date's shifts.
+Submit → `POST /api/uploads` → `importShiftFile` (see `excel-import.md`) → replaces the
+shifts of **every date the workbook carries** (one for a daily file, several for a weekly
+one — see `excel-import.md`'s "Multi-day workbooks").
 
 ## Permissions
 

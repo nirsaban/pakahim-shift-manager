@@ -11,6 +11,10 @@ One sheet per file, sheet name encodes the date (`DD.MM.YY`, e.g. `12.08.26`). I
 that one sheet, multiple **region blocks** stacked vertically, each starting with its own
 repeated header row:
 
+> **Multi-day update (2026-08-13):** a file is no longer assumed to hold a single date.
+> See "Multi-day workbooks" below — the daily one-sheet file is now the single-day case
+> of a general grammar, and nothing about the format above changed.
+
 ```
 מס"ד | שם הפקח | מירס | מס' עובד | שם המתלמד | מירס | מס' עובד | שעת התחלה | שעת סיום | [route] | [train-set codes] | [notes]
 ```
@@ -54,6 +58,36 @@ importShiftFile(file, tenantId, uploadedBy)
      importedShiftCount.
 ```
 
+## Multi-day workbooks (`lib/roster/workbook.ts`)
+
+The department also sends rosters covering several days at once, in two shapes. Both are
+handled by `groupWorkbookByDate(workbook)`, which is pure (no prisma, no Next runtime) and
+tested in `lib/roster/workbook.test.ts`:
+
+1. **One sheet per day** — sheet named `DD.MM.YY`, read by `parseSheetDate`.
+2. **Several dated blocks in one sheet** — each region-block header carries its own date
+   (`פקחים דרום יום ה' 13.08.26`), read by `parseSectionDate` into
+   `RosterRowInput.sectionDate`. A block header's date always beats the sheet name, since
+   it is the more specific claim.
+
+Rules that follow from the two shapes coexisting:
+
+- The same date appearing in more than one sheet is **merged**, not imported twice.
+- `cleanSectionName` strips the date from a block title so `פקחים דרום` stays one stable
+  section name across every day in the file.
+- A row with no date signal anywhere is **dropped, not guessed** — reported to the admin
+  as `importUndatedRows` — unless the *whole* workbook is undated, in which case the
+  original single-day fallback (today) still applies.
+- Each date is imported independently (`importDay`): a grammar surprise on Wednesday does
+  not abort Thursday. The admin gets a per-day breakdown (`ImportResult.days`) rather than
+  an all-or-nothing failure on a five-day file.
+- Teams and workers are resolved once per file (`RosterDirectory`), not once per day —
+  otherwise a three-day upload re-runs ~750 sequential lookups.
+- Pushes are aggregated per worker across the whole file: one "3 ימים (13.08 – 15.08)"
+  notification, not one per day.
+- `ShiftFile.importedDates` records every date the file actually wrote, so the upload
+  history can say which days a given file replaced.
+
 ## What this file does not contain (confirmed, not assumed)
 
 Searched every cell of the real Aug-12 file for `מחליף`, `החלפה`, `מחליפה`, `תחליף`,
@@ -74,3 +108,8 @@ that have an `APPROVED` `CoverageRequest` and a populated `replacementId`. Per t
 question already flagged in `data-model.md`, this needs a loud warning in
 `schedule-upload.md`'s UI before a re-upload proceeds if it would wipe active coverage
 assignments for that date, not a silent cascade-delete.
+
+Multi-day makes this sharper, and the warning was widened to match: a weekly file can wipe
+coverage on days the admin was not even thinking about. The confirmation now returns
+`coverageByDate` (a count per date, not one total) and the UI names each affected day
+before the admin confirms.

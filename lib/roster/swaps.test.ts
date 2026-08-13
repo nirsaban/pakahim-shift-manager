@@ -9,6 +9,7 @@ function row(partial: Partial<RosterRowInput> & { shiftString: string }): Roster
   return {
     rowIndex: 0,
     section: 'פקחים דרום',
+    sectionDate: null,
     serial: '1',
     name: 'בדיקה',
     workerNumber: '100000',

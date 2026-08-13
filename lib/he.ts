@@ -223,6 +223,17 @@ export const he = {
     registrationCompletion: 'השלמת רישום עובדים',
     registrationCompletionSubtitle: 'עובדים עם פרטי התחברות',
     pendingCoverageRequestsTenantWide: 'בקשות כיסוי ממתינות (כלל הארגון)',
+    // Multi-day import
+    importNoValidRows: 'לא נמצאו שורות תקינות לייבוא בקובץ',
+    importSkippedRows: (imported: number, skipped: number) =>
+      `יובאו ${imported} משמרות, ${skipped} שורות דולגו`,
+    importUndatedRows: (count: number) =>
+      `${count} שורות ללא תאריך מזוהה לא יובאו - יש לוודא ששם הגיליון או כותרת הטבלה כוללים תאריך`,
+    importedDaysTitle: 'ימים שיובאו',
+    importedDaysCount: (count: number) => (count === 1 ? 'יום אחד' : `${count} ימים`),
+    uploadMultiDayHint:
+      'ניתן להעלות קובץ של יום אחד או של מספר ימים - גיליון נפרד לכל יום, או מספר טבלאות מתוארכות באותו גיליון. המערכת מזהה את התאריכים מתוך הקובץ.',
+    reuploadCoverageOnDate: (date: string, count: number) => `${date}: ${count} שיבוצי כיסוי`,
     errors: {
       invalid_team_lead: 'יש לבחור מוביל צוות תקין',
       lead_must_be_team_lead_role: 'רק משתמש עם תפקיד "ראש צוות" יכול להוביל צוות',
@@ -350,6 +361,8 @@ export const he = {
 
   // Push notification copy. Kept terse - these land on a lock screen.
   push: {
+    /** One upload can move several days at once - said in one push, not one per day. */
+    multipleDays: (count: number, first: string, last: string) => `${count} ימים (${first} - ${last})`,
     shiftAssigned: {
       title: 'שובצת למשמרת',
       body: (when: string) => `משמרת חדשה ${when}`,
@@ -508,7 +521,60 @@ export const he = {
       duty: 'נסיעה בתפקיד',
     },
   },
+
+  // A worker's full schedule - every shift they hold, not just the next one.
+  schedule: {
+    title: 'כל המשמרות שלי',
+    subtitle: 'השיבוצים הקרובים כפי שיובאו מקובץ הסידור',
+    empty: 'אין שיבוצים קרובים',
+    today: 'היום',
+    tomorrow: 'מחר',
+    coveredBy: 'מכוסה על ידי',
+    covering: 'משמרת כיסוי',
+    shiftsOnDay: (count: number) => (count === 1 ? 'משמרת אחת' : `${count} משמרות`),
+    countInRange: (shifts: number, days: number) =>
+      `${shifts} משמרות ב-${days} ימים`,
+  },
+
+  // Per-worker workload metrics. Same vocabulary for the worker's own card and
+  // the team lead's balance table, so the two never disagree.
+  workload: {
+    title: 'עומס המשמרות שלי',
+    teamTitle: 'עומס עבודה בצוות',
+    teamSubtitle: 'לפי סך שעות בטווח - הכבד ביותר למעלה',
+    range: (from: string, to: string) => `${from} - ${to}`,
+    empty: 'אין נתוני שיבוץ בטווח זה',
+    noShifts: 'ללא שיבוצים',
+    shifts: 'משמרות',
+    totalHours: 'סך שעות',
+    average: 'ממוצע למשמרת',
+    longest: 'המשמרת הארוכה',
+    nights: 'משמרות לילה',
+    weekends: 'שישי-שבת',
+    daysWorked: 'ימי עבודה',
+    streak: 'רצף ימים ברציפות',
+    absences: 'מחלה/חופשה',
+    teamAverage: 'ממוצע הצוות',
+    aboveAverage: (hours: string) => `${hours} שעות מעל ממוצע הצוות`,
+    belowAverage: (hours: string) => `${hours} שעות מתחת לממוצע הצוות`,
+    onAverage: 'בהתאם לממוצע הצוות',
+    restTitle: 'מנוחה קצרה מהנדרש',
+    restHint: 'לפי חוק שעות עבודה ומנוחה נדרשות 8 שעות מנוחה בין משמרת למשמרת',
+    restRow: (endLabel: string, startLabel: string, gap: string) =>
+      `סיום ${endLabel} · תחילה ${startLabel} · ${gap} שעות מנוחה`,
+    restOverlap: (endLabel: string, startLabel: string) =>
+      `סיום ${endLabel} · תחילה ${startLabel} · המשמרות חופפות`,
+    restCount: (count: number) => (count === 1 ? 'אזהרה אחת' : `${count} אזהרות`),
+  },
 };
+
+/** Durations are read as h:mm, never as a decimal - "8:30", not "8.5". */
+export function hoursLabel(minutes: number | null): string {
+  if (minutes === null) return '—';
+  const sign = minutes < 0 ? '-' : '';
+  const abs = Math.abs(minutes);
+  return `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`;
+}
 
 export function coverageErrorMessage(code: string): string {
   return (he.coverage.errors as Record<string, string>)[code] ?? he.error.serverError;

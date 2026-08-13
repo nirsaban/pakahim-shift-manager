@@ -41,9 +41,37 @@ function isBlockHeader(row: unknown[]): boolean {
 }
 
 /** Section titles read "פקחים דרום ... יום ה' 13.08.26" — strip the day+date so
- *  the same section collapses to one stable name across days. */
+ *  the same section collapses to one stable name across days. The date is also
+ *  stripped on its own, because a multi-day workbook stacks blocks for several
+ *  dates in one sheet and not every title spells the weekday out. */
 export function cleanSectionName(raw: string): string {
-  return raw.replace(/\s+יום\s+\S+\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s*$/, '').trim();
+  return raw
+    .replace(/\s+יום\s+\S+\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s*$/, '')
+    .replace(/\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s*$/, '')
+    .trim();
+}
+
+function toRosterDate(dd: string, mm: string, yy: string): Date {
+  const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
+  const date = new Date(year, Number(mm) - 1, Number(dd));
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+/**
+ * The date a block header claims, e.g. "פקחים דרום יום ה' 13.08.26" -> 2026-08-13.
+ *
+ * This is the only per-day signal a multi-day workbook has when the whole
+ * roster sits in ONE sheet: every block repeats its own header, and the header
+ * carries the date. Searched anywhere in the title rather than anchored, since
+ * the department writes it both mid-title and trailing.
+ */
+export function parseSectionDate(title: string): Date | null {
+  const match = title.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+  if (!match) return null;
+  const [, dd, mm, yy] = match;
+  if (Number(mm) < 1 || Number(mm) > 12 || Number(dd) < 1 || Number(dd) > 31) return null;
+  return toRosterDate(dd, mm, yy);
 }
 
 /**
@@ -78,10 +106,7 @@ export function parseSheetDate(sheetName: string): Date | null {
   const match = sheetName.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
   if (!match) return null;
   const [, dd, mm, yy] = match;
-  const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-  const date = new Date(year, Number(mm) - 1, Number(dd));
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return toRosterDate(dd, mm, yy);
 }
 
 export interface ExtractResult {
@@ -96,6 +121,7 @@ export function extractRosterRows(rawRows: unknown[][], fallbackSection = 'כל�
   const sections: string[] = [];
   let dropped = 0;
   let currentSection = fallbackSection;
+  let currentSectionDate: Date | null = null;
 
   rawRows.forEach((row, rowIndex) => {
     if (isBlankRow(row)) return;
@@ -103,6 +129,7 @@ export function extractRosterRows(rawRows: unknown[][], fallbackSection = 'כל�
     if (isBlockHeader(row)) {
       const title = cell(row, COLUMN.routeNote);
       currentSection = title ? cleanSectionName(title) : fallbackSection;
+      currentSectionDate = title ? parseSectionDate(title) : null;
       if (!sections.includes(currentSection)) sections.push(currentSection);
       return;
     }
@@ -119,6 +146,7 @@ export function extractRosterRows(rawRows: unknown[][], fallbackSection = 'כל�
     rows.push({
       rowIndex,
       section: currentSection,
+      sectionDate: currentSectionDate,
       serial,
       name: cell(row, COLUMN.name),
       workerNumber: cell(row, COLUMN.workerNumber),

@@ -13,3 +13,15 @@ export const importedShiftRowSchema = z.object({
 });
 
 export type ImportedShiftRow = z.infer<typeof importedShiftRowSchema>;
+
+/**
+ * Window for "my shifts". Bounded on both sides so a client cannot ask the
+ * dashboard to scan the whole shifts table; the defaults cover a fortnight
+ * either way, which is more than any one uploaded workbook carries.
+ */
+export const myShiftsQuerySchema = z.object({
+  daysBack: z.coerce.number().int().min(0).max(90).default(0),
+  daysForward: z.coerce.number().int().min(1).max(90).default(21),
+});
+
+export type MyShiftsQuery = z.infer<typeof myShiftsQuerySchema>;

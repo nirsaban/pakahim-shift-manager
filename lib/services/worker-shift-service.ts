@@ -96,6 +96,73 @@ export async function getWorkerShiftWindow(workerId: string): Promise<{
   return { previous, current, next };
 }
 
+/** One entry in a worker's own schedule list. */
+export interface ScheduleEntry {
+  shiftId: string;
+  /** yyyy-mm-dd in local time, so the client never re-derives the date from a UTC stamp. */
+  date: string;
+  startTime: Date;
+  endTime: Date;
+  durationMinutes: number;
+  status: string;
+  region: string | null;
+  serial: string | null;
+  routeNote: string | null;
+  startStationHe: string | null;
+  endStationHe: string | null;
+  /** Set when someone else is covering this shift for them. */
+  replacementName: string | null;
+}
+
+function localDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Every shift a worker has in a window, not just the next one.
+ *
+ * The three-shift window above answers "what am I doing now"; this answers "what
+ * does my week look like" — the question that only became askable once an upload
+ * could carry several days at once. Ordered ascending because the list is read
+ * forwards, and capped so a mis-parsed roster cannot return a year of rows.
+ */
+export async function getWorkerSchedule(
+  workerId: string,
+  options: { from?: Date; to?: Date; limit?: number } = {},
+): Promise<ScheduleEntry[]> {
+  const from = options.from ?? new Date(new Date().setHours(0, 0, 0, 0));
+  const to = options.to ?? new Date(from.getTime() + 21 * 24 * 60 * 60_000);
+
+  const shifts = await prisma.shift.findMany({
+    where: {
+      workerId,
+      startTime: { gte: from, lte: to },
+      status: { in: ['SCHEDULED', 'STARTED', 'COMPLETED', 'SICK', 'HOLIDAY'] },
+    },
+    orderBy: { startTime: 'asc' },
+    take: options.limit ?? 100,
+    include: {
+      replacement: { select: { firstName: true, lastName: true } },
+      duty: { select: { serial: true, routeNote: true, startStation: true, endStation: true } },
+    },
+  });
+
+  return shifts.map((shift) => ({
+    shiftId: shift.id,
+    date: localDateKey(shift.startTime),
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    durationMinutes: Math.max(0, Math.round((shift.endTime.getTime() - shift.startTime.getTime()) / 60_000)),
+    status: shift.status,
+    region: shift.region,
+    serial: shift.duty?.serial ?? null,
+    routeNote: shift.duty?.routeNote ?? null,
+    startStationHe: stationNameHe(shift.duty?.startStation ?? null),
+    endStationHe: stationNameHe(shift.duty?.endStation ?? null),
+    replacementName: shift.replacement ? formatWorkerName(shift.replacement) : null,
+  }));
+}
+
 /**
  * The two people either side of this duty in the train's chain: who the
  * inspector relieves, and who relieves them.

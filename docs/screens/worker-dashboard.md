@@ -42,6 +42,25 @@ someone else. Not present today because nothing ever set `replacementId` — see
    inline instead ("ממתין לאישור ראש הצוות" / pending team-lead approval) rather than
    letting the worker file a second request.
 
+7. **"All my shifts" list** `NEW` (`MySchedule`) — every shift the worker holds in the
+   next 14 days, grouped by day, today/tomorrow named rather than dated. Each row shows
+   times, duration, the parsed start→end stations, `מס״ד`, region and route note, plus who
+   is covering it if anyone is. SICK/HOLIDAY days stay in the list so the worker can
+   confirm a cover was assigned. Fed by `getWorkerSchedule(workerId, {from, to})`.
+   This is the direct payoff of multi-day upload: the whole week is visible the moment
+   scheduling uploads it, which is what the client asked for in the interview.
+8. **Workload card** `NEW` (`WorkloadCard`) — shifts, total/average/longest hours, night
+   shifts, weekend shifts, days worked, longest consecutive run, absences, over a −14/+14
+   day window. Plus a comparison against the teammate average, because an hour count means
+   nothing on its own. Rest gaps under the legal 8 hours are listed separately as warnings
+   rather than folded into the grid — every other number is informational, that one is a
+   roster error. Metrics computed by the pure `lib/roster/workload.ts`
+   (`computeWorkload` / `compareToTeam`), fed by `lib/services/workload-service.ts`.
+
+Both are also available as JSON at `GET /api/shifts/mine?daysBack=&daysForward=` for the
+PWA. That route is scoped to the caller and takes no `workerId`, so it cannot become a way
+for one inspector to read another's roster.
+
 ## Actions & side effects
 
 Read-only except the two new entry points, which navigate to their own screens

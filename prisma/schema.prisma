@@ -231,6 +231,11 @@ model ShiftFile {
 
   importedShiftCount Int @default(0)
 
+  /// Every roster date this one file wrote. A workbook can carry a whole week -
+  /// either a sheet per day or several dated blocks in one sheet - so an upload
+  /// is not one date, and the history has to say which days it actually replaced.
+  importedDates DateTime[]
+
   createdAt DateTime @default(now())
 
   @@index([tenantId])

@@ -32,7 +32,16 @@ import {
 } from '@/lib/services/team-service';
 import { listIncidentsForUser } from '@/lib/services/incident-service';
 import { getUploadHistory } from '@/lib/services/upload-service';
-import { getHandoffPartners, getWorkerShiftWindow } from '@/lib/services/worker-shift-service';
+import {
+  getHandoffPartners,
+  getWorkerSchedule,
+  getWorkerShiftWindow,
+} from '@/lib/services/worker-shift-service';
+import {
+  defaultWorkloadWindow,
+  getTeamWorkload,
+  getWorkerWorkload,
+} from '@/lib/services/workload-service';
 import { getAnalyticsSnapshot } from '@/lib/services/analytics-service';
 import {
   getPendingRequestForShift,
@@ -63,6 +72,8 @@ import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
 import { DirectAssignForm } from './_components/DirectAssignForm';
 import { SwapSuggestionActions } from './_components/SwapSuggestionActions';
 import { ShiftDetail, ShiftSummary } from './_components/ShiftDetail';
+import { MySchedule } from './_components/MySchedule';
+import { TeamWorkloadCard, WorkloadCard } from './_components/WorkloadCard';
 import { NotificationsPrompt } from './_components/NotificationsPrompt';
 import { PushServiceStatus } from './_components/PushServiceStatus';
 
@@ -211,11 +222,23 @@ export default async function DashboardPage() {
  * from. The people who ARE relevant (their replacement, and the inspectors
  * either side of them in the train's chain) are surfaced individually instead.
  */
+/** How far ahead the "all my shifts" list looks - a fortnight covers any
+ *  weekly workbook the scheduling department sends, with room to spare. */
+const SCHEDULE_DAYS = 14;
+
 async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
-  const [window, teamLead, coveringFor] = await Promise.all([
+  const scheduleFrom = new Date();
+  scheduleFrom.setHours(0, 0, 0, 0);
+  const scheduleTo = new Date(scheduleFrom);
+  scheduleTo.setDate(scheduleTo.getDate() + SCHEDULE_DAYS);
+  scheduleTo.setHours(23, 59, 59, 999);
+
+  const [window, teamLead, coveringFor, schedule, workload] = await Promise.all([
     getWorkerShiftWindow(userId),
     teamId ? getTeamLeadContact(teamId) : Promise.resolve(null),
     getShiftsCoveringFor(userId),
+    getWorkerSchedule(userId, { from: scheduleFrom, to: scheduleTo }),
+    getWorkerWorkload(userId, teamId),
   ]);
 
   // The shift in progress is the one that matters now; otherwise the next one.
@@ -337,6 +360,10 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
       />
 
       {secondaryShift && <ShiftSummary title={he.roster.myShift.next} shift={secondaryShift} />}
+
+      <MySchedule entries={schedule} days={SCHEDULE_DAYS} />
+
+      <WorkloadCard workload={workload} />
 
       <ShiftSummary title={he.roster.myShift.previous} shift={window.previous} tone="muted" />
 
@@ -464,11 +491,15 @@ async function SwapSuggestionsPanel({ tenantId }: { tenantId: string }) {
 async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantId: string }) {
   const teams = await getTeamsLedBy(userId);
   const teamIds = teams.map((t) => t.id);
-  const [roster, members, incidents, pendingRequests] = await Promise.all([
+  const workloadWindow = defaultWorkloadWindow();
+  const [roster, members, incidents, pendingRequests, teamWorkload] = await Promise.all([
     teamIds.length ? getUpcomingRoster(teamIds) : Promise.resolve([]),
     teamIds.length ? getTeamStatus(teamIds) : Promise.resolve([]),
     listIncidentsForUser(userId),
     teamIds.length ? listPendingCoverageRequests(teamIds) : Promise.resolve([]),
+    teamIds.length
+      ? getTeamWorkload(teamIds, workloadWindow)
+      : Promise.resolve({ window: workloadWindow, members: [], averageMinutes: null }),
   ]);
 
   const candidatesByTeam = Object.fromEntries(
@@ -526,6 +557,12 @@ async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantI
       )}
 
       <TeamStatusList members={members} />
+
+      <TeamWorkloadCard
+        members={teamWorkload.members}
+        averageMinutes={teamWorkload.averageMinutes}
+        window={teamWorkload.window}
+      />
 
       <Card>
         <CardHeader title={he.teamLead.incidents} icon={<Sparkles size={16} />} />

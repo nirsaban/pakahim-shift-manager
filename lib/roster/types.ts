@@ -122,6 +122,13 @@ export type TransportMode = 'TAXI' | 'RAIL' | 'NONE';
 export interface RosterRowInput {
   rowIndex: number;
   section: string;
+  /**
+   * The date this row's block header claims, when it states one. A workbook can
+   * carry several days either as one sheet per day or as several dated blocks
+   * inside a single sheet — this is what makes the second layout importable.
+   * Null when the header has no date; the importer falls back to the sheet name.
+   */
+  sectionDate: Date | null;
   serial: string;
   name: string;
   workerNumber: string;
