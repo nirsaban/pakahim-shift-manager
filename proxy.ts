@@ -54,7 +54,13 @@ export const config = {
   // registered if /sw.js returns the script itself - a 307 to /login silently
   // disables push for everyone, and the manifest/icons must resolve for the
   // browser to offer "add to home screen" at all.
+  //
+  // The alert tones are here for the same reason: a media fetch that arrives
+  // without the session cookie would get a 307 to an HTML login page, and the
+  // only symptom would be a reminder that made no sound - the exact failure
+  // this feature cannot afford. They are three generated tones, carrying
+  // nothing worth gating.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|.*\\.png$|.*\\.svg$|.*\\.ico$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|sounds/|.*\\.png$|.*\\.svg$|.*\\.ico$).*)',
   ],
 };
