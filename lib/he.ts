@@ -379,7 +379,19 @@ export const he = {
     workerNumber: 'מספר עובד',
     workerNumberLocked: 'מגיע מקובץ הסידור - לא ניתן לעריכה',
     email: 'דוא״ל',
-    emailLocked: 'לשינוי כתובת הדוא״ל יש לפנות למנהל',
+    emailNone: 'לא הוגדרה כתובת',
+    changeEmail: 'שינוי כתובת',
+    emailStepIntro:
+      'נשלח קוד אישור לכתובת החדשה. הכתובת תתעדכן רק לאחר הזנת הקוד - כך אנחנו מוודאים שהתיבה בשליטתך.',
+    newEmail: 'כתובת דוא״ל חדשה',
+    sendCode: 'שלח קוד אישור',
+    codeSentTo: (email: string) => `נשלח קוד אישור אל ${email}. הקוד תקף ל-5 דקות.`,
+    confirmationCode: 'קוד אישור',
+    confirmEmail: 'אישור הכתובת החדשה',
+    emailChanged: 'כתובת הדוא״ל עודכנה',
+    emailWhyItMatters: 'לכתובת זו נשלחים קודי הכניסה שלך',
+    resend: 'שליחה חוזרת',
+    cancelEmailChange: 'ביטול',
     save: 'שמירה',
     saved: 'הפרטים נשמרו',
 
@@ -406,6 +418,13 @@ export const he = {
 
     errors: {
       invalid_phone: 'מספר נייד ישראלי לא תקין (לדוגמה 052-1234567)',
+      invalid_email: 'כתובת דוא״ל לא תקינה',
+      invalid_code: 'קוד האישור שגוי או פג תוקפו',
+      email_taken: 'כתובת הדוא״ל כבר משויכת לעובד אחר',
+      same_email: 'זו כבר הכתובת הרשומה בחשבון',
+      cooldown: 'נשלח קוד לאחרונה - יש להמתין דקה לפני שליחה חוזרת',
+      send_failed: 'לא הצלחנו לשלוח את הקוד לכתובת זו - יש לבדוק שהיא נכונה',
+      email_change_rate_limited: 'יותר מדי ניסיונות - יש לנסות שוב מאוחר יותר',
     },
   },
 

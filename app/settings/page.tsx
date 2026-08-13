@@ -10,6 +10,7 @@ import { Brand } from '../_components/Brand';
 import { PageHeader } from '../_components/ui/PageHeader';
 import { Button } from '../_components/ui/Button';
 import { ProfileForm } from './_components/ProfileForm';
+import { EmailChangeForm } from './_components/EmailChangeForm';
 import { ReminderSettingsForm } from './_components/ReminderSettingsForm';
 
 /**
@@ -70,9 +71,10 @@ export default async function SettingsPage() {
             phone: user.phone ?? '',
             city: user.city ?? '',
             workerNumber: user.workerNumber,
-            email: user.email,
           }}
         />
+
+        <EmailChangeForm current={user.email} />
 
         <ReminderSettingsForm
           initial={{

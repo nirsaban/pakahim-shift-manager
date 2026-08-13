@@ -29,6 +29,50 @@ export async function sendOtpEmail(to: string | string[], code: string): Promise
   });
 }
 
+/**
+ * The code that confirms a new address, sent to that address and nowhere else.
+ *
+ * Separate from sendOtpEmail rather than reusing it, because the two must not
+ * share a delivery path: OTP_REDIRECT_MAP can point a login code at a different
+ * mailbox, and a confirmation code that can be redirected proves nothing about
+ * who controls the address being claimed.
+ */
+export async function sendEmailChangeCode(to: string, code: string): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `אישור כתובת דוא"ל חדשה - ${he.brand.name}`,
+    text: `קוד האישור לכתובת הדוא"ל החדשה שלך הוא: ${code}\nהקוד תקף ל-5 דקות.\n\nאם לא ביקשת לשנות כתובת, התעלם מהודעה זו.`,
+    html: `<div dir="rtl" style="font-family: sans-serif; font-size: 16px;">
+      <p>קוד האישור לכתובת הדוא"ל החדשה שלך הוא:</p>
+      <p style="font-size: 32px; font-weight: bold; letter-spacing: 4px;">${code}</p>
+      <p>הקוד תקף ל-5 דקות.</p>
+      <p style="color:#666;">אם לא ביקשת לשנות את כתובת הדוא"ל שלך, אפשר להתעלם מהודעה זו - לא בוצע כל שינוי.</p>
+    </div>`,
+  });
+}
+
+/**
+ * Tells the PREVIOUS address that the account moved.
+ *
+ * The one place the real owner still controls if a stolen session did this, so
+ * it names the new address rather than saying "your email was changed" - a
+ * notice you cannot act on is not a notice.
+ */
+export async function sendEmailChangedNotice(to: string, newEmail: string): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `כתובת הדוא"ל בחשבון שונתה - ${he.brand.name}`,
+    text: `כתובת הדוא"ל בחשבונך שונתה ל-${newEmail}.\n\nאם לא אתה ביצעת את השינוי, יש לפנות למנהל המערכת מיד.`,
+    html: `<div dir="rtl" style="font-family: sans-serif; font-size: 16px;">
+      <p>כתובת הדוא"ל בחשבונך שונתה ל:</p>
+      <p style="font-weight: bold;">${newEmail}</p>
+      <p style="color:#b00;">אם לא אתה ביצעת את השינוי, יש לפנות למנהל המערכת מיד - מעכשיו קודי הכניסה נשלחים לכתובת החדשה.</p>
+    </div>`,
+  });
+}
+
 const REASON_LABELS: Record<string, string> = {
   SICK: 'מחלה',
   HOLIDAY: 'חופשה',

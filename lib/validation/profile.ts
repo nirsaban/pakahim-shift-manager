@@ -38,5 +38,25 @@ export const updateReminderSettingsSchema = z.object({
   sound: z.enum(REMINDER_SOUNDS as [string, ...string[]]),
 });
 
+/**
+ * Changing the address a login code is sent to.
+ *
+ * Split into two steps on purpose. Asking for the change only sends a code to
+ * the *new* address; nothing about the account moves until that code comes
+ * back, which is what proves the person asking can actually read the inbox they
+ * are pointing the account at. A single-step "just save it" would let anyone
+ * holding a live session redirect every future login code to themselves.
+ */
+export const requestEmailChangeSchema = z.object({
+  email: z.string().trim().toLowerCase().email('invalid_email').max(200),
+});
+
+export const confirmEmailChangeSchema = z.object({
+  email: z.string().trim().toLowerCase().email('invalid_email').max(200),
+  code: z.string().trim().regex(/^\d{6}$/, 'invalid_code'),
+});
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type RequestEmailChangeInput = z.infer<typeof requestEmailChangeSchema>;
+export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
 export type UpdateReminderSettingsInput = z.infer<typeof updateReminderSettingsSchema>;

@@ -13,16 +13,16 @@ export interface ProfileValues {
   phone: string;
   city: string;
   workerNumber: string | null;
-  email: string | null;
 }
 
 /**
  * A worker's own details.
  *
- * Worker number and email are shown but not editable: the first is the roster
- * file's identifier for this person and editing it would break every future
- * import's match, the second is what a login code is sent to. Both say why
- * rather than simply being absent.
+ * The worker number is shown but not editable, and says why: it is the roster
+ * file's identifier for this person, so changing it would break the match on
+ * every future import. Email is absent entirely — it decides where login codes
+ * go, so it gets its own confirm-the-new-address flow in EmailChangeForm rather
+ * than sitting in a form that saves on one click.
  */
 export function ProfileForm({ initial }: { initial: ProfileValues }) {
   const [values, setValues] = useState(initial);
@@ -114,14 +114,8 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
           </div>
         )}
 
-        {values.email && (
-          <div>
-            <Field label={he.settings.email}>
-              <Input value={values.email} disabled dir="ltr" className="text-start" />
-            </Field>
-            <p className="mt-1 text-xs text-muted">{he.settings.emailLocked}</p>
-          </div>
-        )}
+        {/* Email is not here: changing where login codes go needs its own
+            confirm-the-new-address flow, which lives in EmailChangeForm. */}
 
         {error && (
           <p className="flex items-center gap-1.5 rounded-[var(--radius-md)] bg-danger-bg p-3 text-sm text-danger-fg">
