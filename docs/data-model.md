@@ -162,6 +162,27 @@ Upload audit record, one per `/admin/upload` submission.
 | `importedDates` | `DateTime[]` | Every roster date this one file wrote. An upload is not one date — a workbook can carry a whole week (see `excel-import.md`), so the audit row has to say which days it actually replaced. |
 | `createdAt` | `DateTime` | |
 
+## `ShiftReminder`
+
+One pre-shift reminder that was actually delivered — the idempotency key for the
+scheduler. It lives in the database rather than in process memory precisely so a deploy in
+the middle of someone's lead window resumes instead of re-sending. See
+`modules/notifications.md` § "Pre-shift reminders".
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `String` (cuid) | |
+| `shiftId` | `String` | FK -> `Shift`, cascade delete. |
+| `userId` | `String` | FK -> `User`. Who was told: the replacement when one is assigned, otherwise the worker. |
+| `leadMinutes` | `Int` | The lead time in force when it fired, so changing the preference later does not make this row retroactively claim something untrue. |
+| `sentAt` | `DateTime` | |
+
+Unique on `(shiftId, userId)` — that constraint *is* the de-duplication.
+
+`User` also gains `shiftReminderEnabled` (default `true`), `shiftReminderLeadMinutes`
+(default `30`) and `shiftReminderSound` (`ReminderSound`, default `CHIME`), all edited by
+the worker in `screens/personal-area.md`.
+
 ## `DiscoveryAnswer`
 
 Internal capture of the client discovery interview Q&A (`/api/discovery`). Not part of

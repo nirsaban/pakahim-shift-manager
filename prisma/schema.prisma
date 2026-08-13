@@ -46,6 +46,13 @@ model User {
 
   fcmToken String? // Firebase Cloud Messaging token for push notifications
 
+  /// Pre-shift reminder, configured by the worker in /settings. Defaults match
+  /// the client's ask - a reminder 30 minutes before every shift, tone on - so
+  /// the feature works for every existing worker without them touching anything.
+  shiftReminderEnabled     Boolean       @default(true)
+  shiftReminderLeadMinutes Int           @default(30)
+  shiftReminderSound       ReminderSound @default(CHIME)
+
   // Home station drives swap scoring. Nullable and expected to be sparse: it is
   // filled in as workers onboard, and the engine degrades to structural
   // (dead-head crossing) detection rather than failing when it is unknown.
@@ -66,6 +73,7 @@ model User {
   coverageRequestsMade    CoverageRequest[]   @relation("CoverageRequester")
   coverageRequestsDecided CoverageRequest[]   @relation("CoverageDecider")
   coverageProposedFor     CoverageRequest[]   @relation("CoverageProposedReplacement")
+  shiftReminders          ShiftReminder[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, workerNumber])
@@ -135,6 +143,7 @@ model Shift {
   updatedAt DateTime @updatedAt
 
   coverageRequests CoverageRequest[]
+  reminders        ShiftReminder[]
   duty             Duty? // parsed roster line this shift came from, if any
 
   @@index([tenantId])
@@ -674,4 +683,42 @@ enum WhatsAppStatus {
   CONNECTED
   DISCONNECTED
   LOGGED_OUT
+}
+
+/// One pre-shift reminder that was actually delivered.
+///
+/// The scheduler ticks every minute inside the app process, so without a record
+/// of what it already sent, a worker would get the same "your shift starts in 30
+/// minutes" push once a minute for half an hour - and a deploy mid-window would
+/// start the whole thing again. The unique (shiftId, userId) is the idempotency
+/// key, and it survives restarts precisely because it lives here rather than in
+/// process memory.
+model ShiftReminder {
+  id String @id @default(cuid())
+
+  shiftId String
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  /// Who was told - the replacement when one is assigned, otherwise the worker.
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The lead time in force when it fired. Recorded so changing the preference
+  /// later does not make this row retroactively claim something untrue.
+  leadMinutes Int
+
+  sentAt DateTime @default(now())
+
+  @@unique([shiftId, userId])
+  @@index([sentAt])
+  @@map("shift_reminders")
+}
+
+/// Which alert tone a worker wants for their pre-shift reminder. SILENT still
+/// delivers the notification - it just does not make noise.
+enum ReminderSound {
+  CHIME
+  BELL
+  ALARM
+  SILENT
 }

@@ -31,15 +31,36 @@ self.addEventListener('push', (event) => {
     // `tag` collapses repeats of the same subject instead of stacking them.
     tag: payload.tag || 'general',
     renotify: Boolean(payload.tag),
-    data: { url: payload.url || '/dashboard' },
-    vibrate: [100, 50, 100],
+    data: { url: payload.url || '/dashboard', sound: payload.sound || null },
+    // A per-alert pattern, so a shift reminder is identifiable by feel alone.
+    vibrate: Array.isArray(payload.vibrate) ? payload.vibrate : [100, 50, 100],
+    silent: payload.silent === true,
     dir: 'rtl',
     lang: 'he',
     requireInteraction: payload.urgent === true,
   };
 
-  event.waitUntil(self.registration.showNotification(payload.title || 'עדכון חדש', options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(payload.title || 'עדכון חדש', options),
+      playInOpenClients(payload),
+    ]),
+  );
 });
+
+/* A notification's sound belongs to the operating system - `Notification.sound`
+ * is implemented nowhere, so a PWA cannot set a custom ringtone on a locked
+ * phone. What it CAN do is ask an already-open page to play the clip itself,
+ * which is what a worker sitting with the app open actually hears. Silence is
+ * respected here too: SILENT asks for no tone at all. */
+async function playInOpenClients(payload) {
+  if (!payload.sound || payload.sound === 'SILENT' || payload.silent === true) return;
+
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clients) {
+    client.postMessage({ type: 'play-alert-sound', sound: payload.sound });
+  }
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

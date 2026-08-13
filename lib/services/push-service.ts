@@ -51,6 +51,19 @@ export interface PushPayload {
   tag?: string;
   /** Keeps the notification on screen until dismissed. Emergencies only. */
   urgent?: boolean;
+  /**
+   * The worker's chosen alert tone, passed through to the service worker.
+   *
+   * A Web Push notification cannot set a custom ringtone - the lock-screen
+   * sound belongs to the OS notification channel. What this actually drives is
+   * the vibration pattern below and, when the app happens to be open, an audio
+   * clip the page plays itself. See lib/notifications/reminder-rules.ts.
+   */
+  sound?: string;
+  /** Delivers the notification without sound or vibration. */
+  silent?: boolean;
+  /** Vibration pattern, in alternating on/off milliseconds. */
+  vibrate?: number[];
 }
 
 export interface BrowserSubscription {

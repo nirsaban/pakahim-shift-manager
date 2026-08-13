@@ -361,10 +361,65 @@ export const he = {
     subscribedDevices: 'מכשירים רשומים',
   },
 
+  // Personal area: own details + pre-shift reminder settings. Every role has
+  // one - a team lead has a phone number and a shift to be reminded of too.
+  settings: {
+    title: 'האזור האישי',
+    subtitle: 'הפרטים שלך והתראות לפני משמרת',
+    open: 'האזור האישי',
+
+    profileTitle: 'הפרטים שלי',
+    profileSubtitle: 'הפרטים שאחרים רואים כשהם צריכים ליצור איתך קשר',
+    firstName: 'שם פרטי',
+    lastName: 'שם משפחה',
+    phone: 'טלפון נייד',
+    phoneHint: 'מספר נייד ישראלי - משמש גם לקבלת קוד כניסה בוואטסאפ',
+    city: 'עיר מגורים',
+    cityHint: 'משמש לשיוך תחנת מוצא ולחישוב נסיעות',
+    workerNumber: 'מספר עובד',
+    workerNumberLocked: 'מגיע מקובץ הסידור - לא ניתן לעריכה',
+    email: 'דוא״ל',
+    emailLocked: 'לשינוי כתובת הדוא״ל יש לפנות למנהל',
+    save: 'שמירה',
+    saved: 'הפרטים נשמרו',
+
+    remindersTitle: 'תזכורת לפני משמרת',
+    remindersSubtitle: 'התראה שנשלחת אליך לפני תחילת המשמרת',
+    reminderEnabled: 'שלח לי תזכורת לפני משמרת',
+    reminderDisabledNote: 'התזכורות כבויות - לא תישלח התראה לפני המשמרת',
+    leadTime: 'כמה זמן לפני',
+    leadMinutes: (minutes: number) => (minutes >= 60 ? `שעה${minutes > 60 ? ` ו-${minutes - 60} דק׳` : ''} לפני` : `${minutes} דקות לפני`),
+    sound: 'צליל ההתראה',
+    preview: 'נגן',
+    soundOption: {
+      CHIME: 'צלצול עדין',
+      BELL: 'פעמון',
+      ALARM: 'אזעקה',
+      SILENT: 'שקט (ללא צליל ורטט)',
+    },
+    // Said plainly rather than left to be discovered: a phone that is locked
+    // plays the system's notification sound, not ours, and no PWA can change
+    // that. The vibration pattern and the in-app tone are what we do control.
+    soundLimitation:
+      'לתשומת לבך: כשהמכשיר נעול, צליל ההתראה נקבע על ידי מערכת ההפעלה ולא על ידי האפליקציה. הבחירה כאן קובעת את דפוס הרטט, ואת הצליל שמתנגן כשהאפליקציה פתוחה.',
+    remindersSaved: 'הגדרות ההתראה נשמרו',
+
+    errors: {
+      invalid_phone: 'מספר נייד ישראלי לא תקין (לדוגמה 052-1234567)',
+    },
+  },
+
   // Push notification copy. Kept terse - these land on a lock screen.
   push: {
     /** One upload can move several days at once - said in one push, not one per day. */
     multipleDays: (count: number, first: string, last: string) => `${count} ימים (${first} - ${last})`,
+    shiftReminder: {
+      title: 'המשמרת שלך מתחילה בקרוב',
+      body: (minutes: number) =>
+        minutes >= 60
+          ? `המשמרת מתחילה בעוד שעה${minutes > 60 ? ` ו-${minutes - 60} דק׳` : ''}`
+          : `המשמרת מתחילה בעוד ${minutes} דקות`,
+    },
     shiftAssigned: {
       title: 'שובצת למשמרת',
       body: (when: string) => `משמרת חדשה ${when}`,

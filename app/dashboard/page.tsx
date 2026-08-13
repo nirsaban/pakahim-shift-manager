@@ -18,6 +18,7 @@ import {
   BarChart3,
   UserCheck,
   Bell,
+  Settings,
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { destroySession } from '@/lib/auth/session';
@@ -75,6 +76,7 @@ import { ShiftDetail, ShiftSummary } from './_components/ShiftDetail';
 import { MySchedule } from './_components/MySchedule';
 import { TeamWorkloadCard, WorkloadCard } from './_components/WorkloadCard';
 import { NotificationsPrompt } from './_components/NotificationsPrompt';
+import { AlertSoundPlayer } from './_components/AlertSoundPlayer';
 import { PushServiceStatus } from './_components/PushServiceStatus';
 
 function StatTile({
@@ -190,6 +192,11 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted">שלום,</p>
             <p className="text-sm font-semibold text-foreground">{displayName}</p>
           </div>
+          <Link href="/settings" aria-label={he.settings.open} title={he.settings.open}>
+            <Button variant="secondary" size="md">
+              <Settings size={15} />
+            </Button>
+          </Link>
           <Link href="/install" aria-label={he.pwa.openInstallGuide} title={he.pwa.openInstallGuide}>
             <Button variant="secondary" size="md">
               <Bell size={15} />
@@ -202,6 +209,9 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-6 pt-4">
         <DataAccuracyNotice />
         <NotificationsPrompt />
+        {/* Renders nothing - listens for the service worker forwarding a push
+            so the chosen tone can be played by a page that is actually open. */}
+        <AlertSoundPlayer />
 
         {role === 'PAKAHIM' && <PakahimDashboard userId={userId} teamId={user.teamId} />}
         {role === 'TEAM_LEAD' && <TeamLeadDashboard userId={userId} tenantId={user.tenantId} />}
