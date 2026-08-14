@@ -15,6 +15,9 @@ const PUBLIC_PATHS = new Set([
   // Install instructions must be readable before logging in - a worker being
   // told "install the app first" has not necessarily signed in yet.
   '/install',
+  // Public marketing page - the whole point is to be readable by people who
+  // have no account yet.
+  '/about',
   // The VAPID public key is public by definition; it is the identifier the
   // browser needs to build a subscription.
   '/api/push/vapid-public-key',
