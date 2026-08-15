@@ -57,7 +57,12 @@ jobs:
                 console.log('WORKER_NAME=' + (user.firstName ?? '') + ' ' + (user.lastName ?? ''));
                 console.log('SESSION_ID=' + sessionId);
                 console.log('COOKIE=' + token);
+                // ioredis keeps the event loop alive, so without this the docker
+                // exec never returns and the whole job hangs on a finished script.
+                const { redis } = await import('./lib/redis');
                 await prisma.\$disconnect();
+                await redis.quit();
+                process.exit(0);
               };
               run();
             "
