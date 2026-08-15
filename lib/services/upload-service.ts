@@ -45,14 +45,6 @@ export interface ImportResult {
   rosterError?: string;
 }
 
-export async function getUploadHistory(tenantId: string, limit = 20) {
-  return prisma.shiftFile.findMany({
-    where: { tenantId },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-  });
-}
-
 /** One roster date a file wrote, and whether that write still stands. */
 export interface UploadedDate {
   /** yyyy-mm-dd. */
