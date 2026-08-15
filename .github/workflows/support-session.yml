@@ -1,27 +1,26 @@
-name: Support session (temporary)
+name: Read a worker's dashboard (temporary)
 
-# TEMPORARY, and deleted as soon as the timezone verification is signed off.
+# TEMPORARY - delete once the timezone verification is signed off.
 #
-# Mints a short-lived session for one worker so their dashboard can be read over
-# HTTPS exactly as they see it - the only way to verify "the hours show wrong"
-# from outside, since port 22 is closed to everyone but this runner.
+# Port 22 is closed to everything but this runner, so this is the only way to
+# check what a worker's SCREEN says rather than what the database holds. It
+# mints a session on the server, fetches that worker's dashboard over HTTPS,
+# prints only the times rendered on the page, and destroys the session again.
 #
-# It grants nothing that server access does not already grant (the JWT secret
-# and the database are both on that box), but it does lower the effort, which is
-# why it is manual-dispatch only and why it is going away again.
+# The session token is never printed: GitHub masks it (it is a credential), and
+# working around that masking would be the wrong instinct. The fetch and the
+# text extraction both happen inside the script that holds the token, so what
+# leaves the job is a list of rendered lines and nothing else.
 
 on:
   workflow_dispatch:
     inputs:
       worker_number:
-        description: Worker number to mint a session for
+        description: Worker number whose dashboard to read
         required: true
-      ttl_seconds:
-        description: How long the session should live
-        default: '900'
 
 jobs:
-  mint:
+  read:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,33 +32,50 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
 
-      - name: Mint
+      - name: Mint a session, read the dashboard, destroy the session
         env:
           DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
           WORKER: ${{ inputs.worker_number }}
-          TTL: ${{ inputs.ttl_seconds }}
         run: |
           set -euo pipefail
           SSH_OPTS="-i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=20"
-          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "WORKER='$WORKER' TTL='$TTL' bash -s" << 'ENDSSH'
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "WORKER='$WORKER' bash -s" << 'ENDSSH'
             set -e
-            docker exec -e WORKER="$WORKER" -e TTL="$TTL" pakahim-app npx tsx -e "
+            docker exec -e WORKER="$WORKER" pakahim-app npx tsx -e "
               const run = async () => {
                 const { prisma } = await import('./lib/db/prisma');
-                const { createSession } = await import('./lib/auth/session');
+                const { createSession, destroySession } = await import('./lib/auth/session');
                 const { signSessionJwt } = await import('./lib/auth/jwt');
-                const workerNumber = process.env.WORKER;
-                const user = await prisma.user.findFirst({ where: { workerNumber } });
-                if (!user) { console.log('NO_SUCH_WORKER'); return; }
+                const { redis } = await import('./lib/redis');
+
+                const user = await prisma.user.findFirst({ where: { workerNumber: process.env.WORKER } });
+                if (!user) { console.log('NO_SUCH_WORKER'); process.exit(0); }
+                console.log('WORKER=' + (user.firstName || '') + ' ' + (user.lastName || '') + ' role=' + user.role);
+
                 const sessionId = await createSession({ userId: user.id, role: user.role });
                 const token = await signSessionJwt({ userId: user.id, sessionId, role: user.role });
-                console.log('WORKER_NAME=' + (user.firstName ?? '') + ' ' + (user.lastName ?? ''));
-                console.log('SESSION_ID=' + sessionId);
-                console.log('COOKIE=' + token);
-                // ioredis keeps the event loop alive, so without this the docker
-                // exec never returns and the whole job hangs on a finished script.
-                const { redis } = await import('./lib/redis');
+
+                const res = await fetch('https://pakahim.miltech.cloud/dashboard', {
+                  headers: { cookie: 'session=' + token },
+                  redirect: 'manual',
+                });
+                const html = await res.text();
+                await destroySession(sessionId);
+
+                console.log('HTTP_STATUS=' + res.status);
+                const stripped = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, '\n');
+                const seen = new Set();
+                const lines = [];
+                for (const raw of stripped.split('\n')) {
+                  const line = raw.trim();
+                  if (!line || seen.has(line)) continue;
+                  if (!/[0-9]{1,2}:[0-9]{2}/.test(line) && !/משמרת|פקחים|שלום|תחנ/.test(line)) continue;
+                  seen.add(line);
+                  lines.push(line);
+                }
+                for (const line of lines.slice(0, 40)) console.log('PAGE| ' + line);
+
                 await prisma.\$disconnect();
                 await redis.quit();
                 process.exit(0);
