@@ -16,8 +16,11 @@ on:
   workflow_dispatch:
     inputs:
       worker_number:
-        description: Worker number whose dashboard to read
-        required: true
+        description: Worker number whose dashboard to read (blank if only destroying)
+        required: false
+      destroy_session_id:
+        description: Session id to revoke and exit
+        required: false
 
 jobs:
   read:
@@ -37,17 +40,30 @@ jobs:
           DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
           WORKER: ${{ inputs.worker_number }}
+          KILL: ${{ inputs.destroy_session_id }}
         run: |
           set -euo pipefail
           SSH_OPTS="-i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=20"
-          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "WORKER='$WORKER' bash -s" << 'ENDSSH'
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "WORKER='$WORKER' KILL='$KILL' bash -s" << 'ENDSSH'
             set -e
-            docker exec -e WORKER="$WORKER" pakahim-app npx tsx -e "
+            docker exec -e WORKER="$WORKER" -e KILL="$KILL" pakahim-app npx tsx -e "
               const run = async () => {
                 const { prisma } = await import('./lib/db/prisma');
                 const { createSession, destroySession } = await import('./lib/auth/session');
                 const { signSessionJwt } = await import('./lib/auth/jwt');
                 const { redis } = await import('./lib/redis');
+
+                // Revoke-only mode: an earlier version of this workflow minted a
+                // session without destroying it. Nothing can use it - its token was
+                // masked in the log and never disclosed - but a live credential
+                // should not be left to time out on its own.
+                if (process.env.KILL) {
+                  await destroySession(process.env.KILL);
+                  console.log('DESTROYED=' + process.env.KILL);
+                  await prisma.\$disconnect();
+                  await redis.quit();
+                  process.exit(0);
+                }
 
                 const user = await prisma.user.findFirst({ where: { workerNumber: process.env.WORKER } });
                 if (!user) { console.log('NO_SUCH_WORKER'); process.exit(0); }
