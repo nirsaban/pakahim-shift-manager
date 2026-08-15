@@ -1,0 +1,64 @@
+name: Support session (temporary)
+
+# TEMPORARY, and deleted as soon as the timezone verification is signed off.
+#
+# Mints a short-lived session for one worker so their dashboard can be read over
+# HTTPS exactly as they see it - the only way to verify "the hours show wrong"
+# from outside, since port 22 is closed to everyone but this runner.
+#
+# It grants nothing that server access does not already grant (the JWT secret
+# and the database are both on that box), but it does lower the effort, which is
+# why it is manual-dispatch only and why it is going away again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_number:
+        description: Worker number to mint a session for
+        required: true
+      ttl_seconds:
+        description: How long the session should live
+        default: '900'
+
+jobs:
+  mint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+      - name: Mint
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          WORKER: ${{ inputs.worker_number }}
+          TTL: ${{ inputs.ttl_seconds }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=20"
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "WORKER='$WORKER' TTL='$TTL' bash -s" << 'ENDSSH'
+            set -e
+            docker exec -e WORKER="$WORKER" -e TTL="$TTL" pakahim-app npx tsx -e "
+              const run = async () => {
+                const { prisma } = await import('./lib/db/prisma');
+                const { createSession } = await import('./lib/auth/session');
+                const { signSessionJwt } = await import('./lib/auth/jwt');
+                const workerNumber = process.env.WORKER;
+                const user = await prisma.user.findFirst({ where: { workerNumber } });
+                if (!user) { console.log('NO_SUCH_WORKER'); return; }
+                const sessionId = await createSession({ userId: user.id, role: user.role });
+                const token = await signSessionJwt({ userId: user.id, sessionId, role: user.role });
+                console.log('WORKER_NAME=' + (user.firstName ?? '') + ' ' + (user.lastName ?? ''));
+                console.log('SESSION_ID=' + sessionId);
+                console.log('COOKIE=' + token);
+                await prisma.\$disconnect();
+              };
+              run();
+            "
+          ENDSSH
