@@ -6,19 +6,14 @@ import type { TeamMemberWorkload, WorkerWorkload } from '@/lib/services/workload
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Badge } from '../../_components/ui/Badge';
 import { EmptyState } from '../../_components/ui/EmptyState';
+import { formatIsraelDate, formatIsraelDateTime } from '@/lib/time/zone';
 
 function shortDate(date: Date): string {
-  return date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+  return formatIsraelDate(date, { day: '2-digit', month: '2-digit' });
 }
 
 function dayTime(date: Date): string {
-  return date.toLocaleString('he-IL', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatIsraelDateTime(date);
 }
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {

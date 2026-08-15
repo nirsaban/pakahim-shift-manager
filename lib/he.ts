@@ -620,6 +620,34 @@ export const he = {
   },
 
   // A worker's full schedule - every shift they hold, not just the next one.
+  // Timezone repair (/admin/timezone)
+  timezone: {
+    title: 'שעות המשמרות ואזור הזמן',
+    subtitle: 'בדיקה ותיקון של משמרות שיובאו לפני שהשעות חושבו לפי שעון ישראל',
+    statusTitle: 'מצב נוכחי',
+    healthy: 'תקין',
+    needsRepair: 'נדרש תיקון',
+    serverClock: 'השעה לפי השרת',
+    israelClock: 'השעה בישראל',
+    shiftsNeedingRepair: 'משמרות שדורשות תיקון',
+    shiftsCorrect: 'משמרות תקינות',
+    dutiesNeedingRepair: 'סידורים שדורשים תיקון',
+    processZoneWarning:
+      'השרת אינו מציג שעון ישראל. הנתונים עצמם אינם תלויים בכך, אבל כדאי לוודא שמשתנה TZ מוגדר.',
+    samplesTitle: 'דוגמאות',
+    samplesSubtitle: 'כך המשמרות מוצגות היום, וכך הן יוצגו אחרי התיקון',
+    repairTitle: 'תיקון',
+    repairExplainer:
+      'התיקון שומר על השעה כפי שהיא כתובה בקובץ הסידור ומעגן אותה לשעון ישראל. הוא רץ אוטומטית בכל הפעלה של השרת, ואפשר להריץ אותו גם מכאן. בטוח להריץ שוב — הוא נוגע רק בשורות שנכתבו לפני התיקון.',
+    repairAction: (count: number) => (count === 0 ? 'אין מה לתקן' : `תקן ${count} רשומות`),
+    repairing: 'מתקן...',
+    repairDone: 'התיקון הושלם',
+    repairedShifts: (n: number) => `${n} משמרות תוקנו`,
+    repairedDuties: (n: number) => `${n} סידורים תוקנו`,
+    clearedReminders: (n: number) => `${n} התראות אופסו כדי שיישלחו מחדש בזמן הנכון`,
+    remaining: (n: number) => `נותרו ${n} רשומות לתיקון`,
+  },
+
   // Commander view: where every inspector and train is, right now
   commander: {
     title: 'תמונת מצב מבצעית',

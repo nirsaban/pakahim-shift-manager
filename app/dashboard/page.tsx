@@ -39,7 +39,13 @@ import {
   getWorkerShiftWindow,
 } from '@/lib/services/worker-shift-service';
 import { getTrainCompanions } from '@/lib/services/train-companion-service';
-import { addIsraelDays, startOfIsraelDay } from '@/lib/time/zone';
+import {
+  addIsraelDays,
+  formatIsraelDate,
+  formatIsraelDateTime,
+  formatIsraelTime,
+  startOfIsraelDay,
+} from '@/lib/time/zone';
 import {
   defaultWorkloadWindow,
   getTeamWorkload,
@@ -143,7 +149,7 @@ function RosterList({ entries, showTeam }: { entries: RosterEntry[]; showTeam: b
             </div>
             <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
               <span>
-                {entry.startTime.toLocaleString('he-IL')} - {entry.endTime.toLocaleString('he-IL')}
+                {formatIsraelDateTime(entry.startTime)} - {formatIsraelDateTime(entry.endTime)}
               </span>
               <span>&middot;</span>
               <span className="inline-flex items-center gap-1">
@@ -304,15 +310,15 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
             )}
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tabular-nums">
-                {next.shift.startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                {formatIsraelTime(next.shift.startTime)}
               </span>
               <ArrowLeftRight size={16} className="text-white/60" />
               <span className="text-3xl font-bold tabular-nums">
-                {next.shift.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                {formatIsraelTime(next.shift.endTime)}
               </span>
             </div>
             <p className="text-sm text-white/75">
-              {next.shift.startTime.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {formatIsraelDate(next.shift.startTime)}
             </p>
             {next.replacement && (
               <div className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-white/10 p-3.5 ring-1 ring-white/15">
@@ -362,7 +368,7 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
                   </span>
                 </div>
                 <span className="text-sm text-muted">
-                  {s.startTime.toLocaleString('he-IL')} - {s.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                  {formatIsraelDateTime(s.startTime)} - {formatIsraelTime(s.endTime)}
                 </span>
               </li>
             ))}
@@ -431,7 +437,7 @@ async function SwapSuggestionsPanel({ tenantId }: { tenantId: string }) {
       <p className="text-sm text-muted">{he.roster.swaps.subtitle}</p>
       {date && (
         <p className="mt-1 text-sm text-muted">
-          {date.toLocaleDateString('he-IL', { weekday: 'long', day: '2-digit', month: '2-digit' })}
+          {formatIsraelDate(date, { weekday: 'long', day: '2-digit', month: '2-digit' })}
         </p>
       )}
 
@@ -555,8 +561,8 @@ async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantI
                 <Badge tone="warning">{reasonLabel(req.reason)}</Badge>
               </div>
               <span className="text-sm text-muted">
-                {req.startTime.toLocaleString('he-IL')} -{' '}
-                {req.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                {formatIsraelDateTime(req.startTime)} -{' '}
+                {formatIsraelTime(req.endTime)}
               </span>
               {req.note && <p className="text-sm text-muted">{req.note}</p>}
               <CoverageDecisionActions
@@ -579,7 +585,7 @@ async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantI
             shifts={roster.map((r) => ({
               id: r.shiftId,
               teamId: r.teamId,
-              label: `${r.workerName} · ${r.startTime.toLocaleString('he-IL')}`,
+              label: `${r.workerName} · ${formatIsraelDateTime(r.startTime)}`,
             }))}
             candidatesByTeam={candidatesByTeam}
           />
@@ -676,6 +682,12 @@ async function AdminDashboard() {
             <Button size="lg" variant="secondary">
               <History size={17} />
               {he.admin.uploadHistory}
+            </Button>
+          </Link>
+          <Link href="/admin/timezone">
+            <Button size="lg" variant="secondary">
+              <Clock size={17} />
+              {he.timezone.title}
             </Button>
           </Link>
           <Link href="/admin/commander">

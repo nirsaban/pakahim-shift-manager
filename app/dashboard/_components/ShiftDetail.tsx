@@ -1,5 +1,6 @@
 import { ArrowLeftRight, MapPin, MessageCircle, Route, TrainFront, Wrench } from 'lucide-react';
 import { he, opLabel, transportLabel } from '@/lib/he';
+import { formatIsraelDate, formatIsraelTime } from '@/lib/time/zone';
 import { toWhatsAppLink } from '@/lib/utils/whatsapp';
 import type { HandoffPair, HandoffPartner } from '@/lib/services/worker-shift-service';
 import { lineNameHe, stationNameHe } from '@/lib/services/worker-shift-service';
@@ -263,12 +264,12 @@ export function ShiftSummary({
       {shift ? (
         <div className="flex flex-col gap-1">
           <span className={tone === 'muted' ? 'text-lg font-semibold text-muted' : 'text-lg font-semibold text-foreground'}>
-            {shift.startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            {formatIsraelTime(shift.startTime)}
             {' – '}
-            {shift.endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            {formatIsraelTime(shift.endTime)}
           </span>
           <span className="text-sm text-muted">
-            {shift.startTime.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {formatIsraelDate(shift.startTime)}
           </span>
           {shift.duty?.routeNote && <span className="text-sm text-muted">{shift.duty.routeNote}</span>}
           {shift.duty && (

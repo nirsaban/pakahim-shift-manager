@@ -1,27 +1,35 @@
 import { CalendarDays, MapPin, ShieldCheck } from 'lucide-react';
 import { he, hoursLabel } from '@/lib/he';
+import {
+  addIsraelDays,
+  formatIsraelDate,
+  formatIsraelTime,
+  israelMidnight,
+  startOfIsraelDay,
+} from '@/lib/time/zone';
 import type { ScheduleEntry } from '@/lib/services/worker-shift-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Badge } from '../../_components/ui/Badge';
 import { EmptyState } from '../../_components/ui/EmptyState';
 import { ShiftDetailBody } from './ShiftDetail';
 
-function hhmm(date: Date): string {
-  return date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-}
+const hhmm = formatIsraelTime;
 
 /** "היום" / "מחר" beat a date an inspector then has to decode on a platform. */
 function dayHeading(isoDate: string): string {
   const [y, m, d] = isoDate.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
+  const date = israelMidnight(y, m, d);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((date.getTime() - today.getTime()) / (24 * 60 * 60_000));
+  // Calendar days apart in ISRAEL - not (ms / 86400000), which is an hour out
+  // on each side of a DST switch and would relabel "today" as "tomorrow".
+  const today = startOfIsraelDay(new Date());
+  let diffDays = 0;
+  while (diffDays < 3 && addIsraelDays(today, diffDays).getTime() < date.getTime()) diffDays += 1;
+  if (date.getTime() !== addIsraelDays(today, diffDays).getTime()) diffDays = -1;
   if (diffDays === 0) return he.schedule.today;
   if (diffDays === 1) return he.schedule.tomorrow;
 
-  return date.toLocaleDateString('he-IL', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  return formatIsraelDate(date, { weekday: 'long', day: '2-digit', month: '2-digit' });
 }
 
 function groupByDate(entries: ScheduleEntry[]): { date: string; entries: ScheduleEntry[] }[] {

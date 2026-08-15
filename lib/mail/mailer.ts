@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { he } from '../he';
+import { formatIsraelDate, formatIsraelTime } from '../time/zone';
 
 const port = Number(process.env.SMTP_PORT ?? 465);
 
@@ -81,9 +82,11 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 function formatShiftWindow(date: Date, startTime: Date, endTime: Date): string {
-  const d = date.toLocaleDateString('he-IL');
-  const s = startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-  const e = endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  // Israel time explicitly: an email saying the wrong hour is worse than most
+  // bugs, because the worker acts on it hours before anyone can correct it.
+  const d = formatIsraelDate(date, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const s = formatIsraelTime(startTime);
+  const e = formatIsraelTime(endTime);
   return `${d}, ${s}-${e}`;
 }
 

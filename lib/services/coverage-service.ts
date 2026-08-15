@@ -4,12 +4,13 @@ import { sendCoverageDecisionEmail, sendCoverageRequestEmail } from '../mail/mai
 import { notify } from './push-service';
 import { formatWorkerName } from '../utils/display-name';
 import type { RequestCoverageInput } from '../validation/coverage';
+import { formatIsraelDate, formatIsraelTime } from '../time/zone';
 
 /** Short "Thu 13/08 06:00-12:15" for notification bodies. */
 export function formatShiftWhen(date: Date, startTime: Date, endTime: Date): string {
-  const day = date.toLocaleDateString('he-IL', { weekday: 'short', day: '2-digit', month: '2-digit' });
-  const from = startTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-  const to = endTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const day = formatIsraelDate(date, { weekday: 'short', day: '2-digit', month: '2-digit' });
+  const from = formatIsraelTime(startTime);
+  const to = formatIsraelTime(endTime);
   return `${day} ${from}-${to}`;
 }
 
