@@ -4,6 +4,15 @@
 // that decide "this is a night shift" or "this rest gap is too short" can be
 // tested directly. The service layer feeds it rows and adds the DB queries.
 
+import {
+  addIsraelDays,
+  israelDateKey,
+  israelParts,
+  israelTime,
+  israelWeekday,
+  startOfIsraelDay,
+} from '../time/zone';
+
 /** The shift shape these metrics need - a subset of the Shift model. */
 export interface WorkloadShift {
   startTime: Date;
@@ -51,15 +60,13 @@ const NIGHT_END_HOUR = 5;
 /** SICK / HOLIDAY rows exist so a worker can see their replacement; they are not work. */
 const ABSENCE_STATUSES = new Set(['SICK', 'HOLIDAY']);
 
-function dayStart(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+// Night, weekend and "which day is this" are all questions about the clock on
+// the wall in Israel, not about the server's zone. Under a UTC process the local
+// getters classified a 02:00 duty as belonging to the previous day and missed
+// the night premium entirely.
+const dayStart = startOfIsraelDay;
 
-function dayKey(date: Date): string {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
+const dayKey = israelDateKey;
 
 /**
  * Does any minute of the shift fall between midnight and 05:00?
@@ -68,12 +75,10 @@ function dayKey(date: Date): string {
  * a 22:00-06:00 shift counts even though it starts in the evening.
  */
 function overlapsNight(start: Date, end: Date): boolean {
-  const base = dayStart(start);
+  const on = israelParts(start);
   for (let offset = 0; offset <= 1; offset++) {
-    const nightStart = new Date(base);
-    nightStart.setDate(nightStart.getDate() + offset);
-    const nightEnd = new Date(nightStart);
-    nightEnd.setHours(NIGHT_END_HOUR);
+    const nightStart = israelTime(on.year, on.month, on.day + offset, 0);
+    const nightEnd = israelTime(on.year, on.month, on.day + offset, NIGHT_END_HOUR * 60);
     if (start < nightEnd && end > nightStart) return true;
   }
   return false;
@@ -81,7 +86,7 @@ function overlapsNight(start: Date, end: Date): boolean {
 
 /** The Israeli weekend: Friday and Saturday, taken from the day the shift starts. */
 function isWeekend(start: Date): boolean {
-  const day = start.getDay();
+  const day = israelWeekday(start);
   return day === 5 || day === 6;
 }
 
@@ -124,8 +129,9 @@ export function computeWorkload(shifts: WorkloadShift[]): WorkloadMetrics {
   for (let i = 0; i < dayStamps.length; i++) {
     const previous = i > 0 ? new Date(dayStamps[i - 1]) : null;
     if (previous) {
-      const expected = new Date(previous);
-      expected.setDate(expected.getDate() + 1);
+      // Calendar-day arithmetic, not +86400000: the two DST weekends have a
+      // 23- and a 25-hour day, and a fixed-millisecond step breaks the streak.
+      const expected = addIsraelDays(previous, 1);
       streak = expected.getTime() === dayStamps[i] ? streak + 1 : 1;
     } else {
       streak = 1;

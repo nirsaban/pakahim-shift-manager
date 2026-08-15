@@ -4,7 +4,12 @@ FROM node:22-slim AS base
 # Debian glibc, not Alpine musl — @node-rs/argon2's prebuilt native binding
 # doesn't load reliably under musl; glibc is the well-supported target
 # (same lesson learned in GeniriFlow-Brain/control-room).
-RUN apt-get update && apt-get install -y --no-install-recommends openssl wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends openssl wget tzdata && rm -rf /var/lib/apt/lists/*
+# Every time in this product is Israel local time: the roster file states wall
+# clock, workers read wall clock, and the pre-shift reminder has to fire against
+# it. The data path no longer depends on this (lib/time/zone.ts converts
+# explicitly), but plain toLocaleString rendering and container logs do.
+ENV TZ=Asia/Jerusalem
 WORKDIR /app
 
 FROM base AS deps

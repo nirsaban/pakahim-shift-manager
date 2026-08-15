@@ -6,6 +6,8 @@ import { groupWorkbookByDate, type RosterDay } from '../roster/workbook';
 import type { RosterRowInput } from '../roster/types';
 import { dutyKey, persistRoster } from './roster-service';
 import { notify } from './push-service';
+import { formatIsraelDate, israelDateKey, israelParts, israelTime } from '../time/zone';
+import { formatWorkerName } from '../utils/display-name';
 import { he } from '../he';
 
 /** One roster date inside an uploaded workbook. */
@@ -43,12 +45,83 @@ export interface ImportResult {
   rosterError?: string;
 }
 
-export async function getUploadHistory(tenantId: string, limit = 20) {
-  return prisma.shiftFile.findMany({
+/** One roster date a file wrote, and whether that write still stands. */
+export interface UploadedDate {
+  /** yyyy-mm-dd. */
+  date: string;
+  /** Shifts currently held for that date - which may have come from a later file. */
+  shiftCount: number;
+  /** False when a newer upload has since replaced this date. */
+  isCurrent: boolean;
+}
+
+export interface UploadRecord {
+  id: string;
+  filename: string;
+  status: string;
+  errorMessage: string | null;
+  importedShiftCount: number;
+  createdAt: Date;
+  uploadedByName: string | null;
+  dates: UploadedDate[];
+}
+
+/**
+ * Upload history with the dates behind each file.
+ *
+ * An import is a destructive replace per date, so "which file is the roster for
+ * Friday" is a real question with a real answer, and the answer is not always
+ * the newest file overall - a Sunday-only re-upload does not touch Friday. Each
+ * date is marked with whether this file is still the one that wrote it.
+ */
+export async function listUploadRecords(tenantId: string, limit = 50): Promise<UploadRecord[]> {
+  const files = await prisma.shiftFile.findMany({
     where: { tenantId },
     orderBy: { createdAt: 'desc' },
     take: limit,
   });
+
+  const uploaderIds = [...new Set(files.map((f) => f.uploadedBy))];
+  const [uploaders, shiftCounts] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: uploaderIds } },
+      select: { id: true, firstName: true, lastName: true, workerNumber: true },
+    }),
+    prisma.shift.groupBy({ by: ['date'], where: { tenantId }, _count: { _all: true } }),
+  ]);
+
+  const nameById = new Map(uploaders.map((u) => [u.id, formatWorkerName(u) || u.workerNumber]));
+  const countByDate = new Map(shiftCounts.map((row) => [dateKey(row.date), row._count._all]));
+
+  // Newest import wins a date, because that is exactly what the importer did to
+  // the database. Files are already in descending order, so the first claim seen
+  // is the surviving one.
+  const ownerByDate = new Map<string, string>();
+  for (const file of files) {
+    if (file.status !== 'IMPORTED') continue;
+    for (const date of file.importedDates) {
+      const key = dateKey(date);
+      if (!ownerByDate.has(key)) ownerByDate.set(key, file.id);
+    }
+  }
+
+  return files.map((file) => ({
+    id: file.id,
+    filename: file.filename,
+    status: file.status,
+    errorMessage: file.errorMessage,
+    importedShiftCount: file.importedShiftCount,
+    createdAt: file.createdAt,
+    uploadedByName: nameById.get(file.uploadedBy) ?? null,
+    dates: file.importedDates.map((date) => {
+      const key = dateKey(date);
+      return {
+        date: key,
+        shiftCount: countByDate.get(key) ?? 0,
+        isCurrent: ownerByDate.get(key) === file.id,
+      };
+    }),
+  }));
 }
 
 // Sheet scanning, date/time parsing and section-name cleaning now live in
@@ -68,9 +141,7 @@ function shiftSignature(shift: { startTime: Date; endTime: Date; notes: string |
   return `${shift.startTime.getTime()}|${shift.endTime.getTime()}|${shift.notes ?? ''}`;
 }
 
-function dateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+const dateKey = israelDateKey;
 
 // Narrows the full roster to the rows that can become a Shift: those need an
 // inspector and both times. Rows without them stay in the roster layer as open
@@ -364,13 +435,18 @@ async function importDay(
     const teamId = await directory.teamId(row.region);
     const workerId = await directory.workerId(row.workerNumber, row.name, teamId);
 
-    const startTime = new Date(date);
-    startTime.setMinutes(row.startMinutes);
-    const endTime = new Date(date);
-    endTime.setMinutes(row.endMinutes);
-    if (row.endMinutes <= row.startMinutes) {
-      endTime.setDate(endTime.getDate() + 1);
-    }
+    // Roster times are Israel wall-clock. Built through the zone helper rather
+    // than with local-time setters so the instant is right whatever TZ the
+    // server runs - see lib/time/zone.ts for what that used to cost us.
+    const on = israelParts(date);
+    const endsNextDay = row.endMinutes <= row.startMinutes;
+    const startTime = israelTime(on.year, on.month, on.day, row.startMinutes);
+    const endTime = israelTime(
+      on.year,
+      on.month,
+      on.day,
+      endsNextDay ? row.endMinutes + 24 * 60 : row.endMinutes,
+    );
 
     shiftsToCreate.push({
       tenantId,
@@ -462,14 +538,14 @@ function collectChanges(
 }
 
 function dayLabel(date: Date): string {
-  return date.toLocaleDateString('he-IL', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  return formatIsraelDate(date, { weekday: 'long', day: '2-digit', month: '2-digit' });
 }
 
 /** "יום חמישי 13.08" for a single date, "3 ימים (13.08 – 15.08)" for a run of them. */
 function whenLabel(dates: Date[]): string {
   const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
   if (sorted.length === 1) return dayLabel(sorted[0]);
-  const short = (d: Date) => d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+  const short = (d: Date) => formatIsraelDate(d, { day: '2-digit', month: '2-digit' });
   return he.push.multipleDays(sorted.length, short(sorted[0]), short(sorted[sorted.length - 1]));
 }
 

@@ -6,6 +6,7 @@
 // duties — a swap can move someone into one — and the existing importer
 // discards them today.
 
+import { israelMidnight, israelWeekday } from '../time/zone';
 import type { RosterRowInput } from './types';
 
 // The serial column is headed two different ways by the same department, and a
@@ -66,11 +67,15 @@ export function cleanSectionName(raw: string): string {
     .trim();
 }
 
+/**
+ * A roster date is midnight in Israel, not midnight wherever the server runs.
+ * The dates parsed here become `Shift.date` and the key an import destructively
+ * replaces, so a UTC-midnight instant would put a whole day's roster three hours
+ * into the previous day.
+ */
 function toRosterDate(dd: string, mm: string, yy: string): Date {
   const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-  const date = new Date(year, Number(mm) - 1, Number(dd));
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return israelMidnight(year, Number(mm), Number(dd));
 }
 
 /**
@@ -186,14 +191,14 @@ export function resolveBlockDate(
   const { titleDate, weekday } = block;
 
   if (titleDate) {
-    const contradictsWeekday = weekday !== null && titleDate.getDay() !== weekday;
+    const contradictsWeekday = weekday !== null && israelWeekday(titleDate) !== weekday;
     const outsideSheetSpan =
       sheetDates.length > 1 && !sheetDates.some((d) => d.getTime() === titleDate.getTime());
     if (!contradictsWeekday && !outsideSheetSpan) return titleDate;
   }
 
   if (weekday !== null) {
-    const match = sheetDates.find((d) => d.getDay() === weekday);
+    const match = sheetDates.find((d) => israelWeekday(d) === weekday);
     if (match) return match;
   }
 

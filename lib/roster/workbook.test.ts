@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 import { groupWorkbookByDate } from './workbook';
 import { cleanSectionName, parseSectionDate, parseSheetDates, parseWeekday } from './sheet';
+import { israelParts, israelTime } from '../time/zone';
 
 const HEADER = ['מס"ד', 'שם הפקח', 'מירס', 'מס\' עובד', 'שם המתלמד', 'מירס', 'מס\' עובד', 'שעת התחלה', 'שעת סיום'];
 
@@ -28,7 +29,12 @@ function workbook(sheets: Record<string, unknown[][]>): XLSX.WorkBook {
   return wb;
 }
 
-const ymd = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+// Read back in Israel time, not the runner's zone: a roster date is midnight in
+// Israel, which under TZ=UTC reads as 21:00 the day before.
+const ymd = (d: Date) => {
+  const p = israelParts(d);
+  return `${p.year}-${p.month}-${p.day}`;
+};
 
 describe('parseSectionDate', () => {
   it('reads the date out of a block header title', () => {
@@ -154,7 +160,7 @@ describe('groupWorkbookByDate', () => {
   });
 
   it('falls back to today only when the whole workbook states no date', () => {
-    const today = new Date(2026, 7, 20, 13, 45);
+    const today = israelTime(2026, 8, 20, 13 * 60 + 45);
     const scan = groupWorkbookByDate(
       workbook({ גיליון1: [blockHeader('פקחים דרום'), dutyRow('1', 'דנה', '100001')] }),
       today,
@@ -162,7 +168,7 @@ describe('groupWorkbookByDate', () => {
 
     expect(scan.days).toHaveLength(1);
     expect(ymd(scan.days[0].date)).toBe('2026-8-20');
-    expect(scan.days[0].date.getHours()).toBe(0);
+    expect(israelParts(scan.days[0].date).hour).toBe(0);
     expect(scan.undated).toBe(0);
   });
 

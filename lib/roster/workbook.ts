@@ -6,6 +6,7 @@
 
 import * as XLSX from 'xlsx';
 import { extractRosterRows, parseSheetDates, resolveBlockDate } from './sheet';
+import { startOfIsraelDay } from '../time/zone';
 import type { RosterRowInput } from './types';
 
 export interface RosterDay {
@@ -84,9 +85,7 @@ export function groupWorkbookByDate(workbook: XLSX.WorkBook, today: Date = new D
 
   // Nothing anywhere in the workbook stated a date: the whole file is today.
   if (byDate.size === 0 && undated.length > 0) {
-    const date = new Date(today);
-    date.setHours(0, 0, 0, 0);
-    return { days: [{ date, rosterRows: undated }], dropped, undated: 0 };
+    return { days: [{ date: startOfIsraelDay(today), rosterRows: undated }], dropped, undated: 0 };
   }
 
   const days = [...byDate.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
