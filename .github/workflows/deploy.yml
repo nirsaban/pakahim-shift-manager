@@ -206,12 +206,13 @@ jobs:
             # sheet. If the shift instant, rendered in Israel, disagrees with
             # them by even a minute, the hours on someone's phone are wrong.
             docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
-              "SELECT count(*) AS mismatched_start, count(*) FILTER (WHERE true) AS checked
+              "SELECT count(*) FILTER (
+                        WHERE (extract(hour FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem')*60
+                             + extract(minute FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem'))
+                              <> d.\"startMinutes\") AS mismatched,
+                      count(*) AS compared
                FROM shifts s JOIN duties d ON d.\"shiftId\" = s.id
-               WHERE d.\"startMinutes\" IS NOT NULL
-                 AND (extract(hour FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem')*60
-                    + extract(minute FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem'))
-                     <> d.\"startMinutes\";"
+               WHERE d.\"startMinutes\" IS NOT NULL;"
             echo "--- worker 797433, every shift on record"
             docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
               "SELECT coalesce(u.\"firstName\",'?') AS name,
