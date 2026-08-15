@@ -203,8 +203,15 @@ export const he = {
     addWorker: 'הוסף עובד',
     teamName: 'שם הצוות',
     teamLead: 'מנהל הצוות',
-    uploadHistory: 'היסטוריית העלאות',
+    uploadHistory: 'קבצים ותאריכים',
+    uploadHistorySubtitle: 'כל קובץ סידור שהועלה, ואילו תאריכים הוא כתב',
     noUploadsYet: 'עדיין לא הועלו קבצים',
+    uploadedBy: 'הועלה על ידי',
+    datesWritten: 'תאריכים שנכתבו',
+    shiftsOnDate: (count: number) => `${count} משמרות`,
+    replacedByLater: 'הוחלף בהעלאה מאוחרת יותר',
+    currentForDate: 'הקובץ הפעיל לתאריך',
+    noDatesRecorded: 'לא נרשמו תאריכים (העלאה מלפני המעקב)',
     reuploadWillClearCoverage: 'העלאה מחדש לתאריך זה תמחק שיבוצי כיסוי פעילים. להמשיך?',
     editTeam: 'ערוך צוות',
     deleteTeam: 'מחק צוות',
@@ -488,6 +495,20 @@ export const he = {
 
   // Roster engine: parsed duties, handoffs, swap suggestions
   roster: {
+    companions: {
+      title: 'מי איתי ברכבת',
+      subtitle: 'פקחים שנוסעים ברכבת שאתם מפעילים, בדרך למשמרת שלהם',
+      pickTrain: 'בחירת רכבת',
+      onTheirWay: 'בדרך למשמרת',
+      headingHome: 'בדרך הביתה',
+      repositioning: 'מעבר בין רכבות',
+      boardsAt: 'עולה ב',
+      alightsAt: 'יורד ב',
+      shiftWindow: 'משמרת',
+      nobodyAboard: 'אף פקח לא נוסע ברכבת זו',
+      noTrains: 'אין רכבות בתפקיד במשמרת זו',
+      riders: (count: number) => (count === 1 ? 'פקח אחד' : `${count} פקחים`),
+    },
     handoffs: {
       title: 'חפיפות משמרת',
       subtitle: 'מי מחליף את מי, באיזו רכבת ובאיזו תחנה',
@@ -599,6 +620,34 @@ export const he = {
   },
 
   // A worker's full schedule - every shift they hold, not just the next one.
+  // Commander view: where every inspector and train is, right now
+  commander: {
+    title: 'תמונת מצב מבצעית',
+    subtitle: 'איפה כל פקח נמצא ברגע זה, לפי קובץ הסידור',
+    now: 'עכשיו',
+    backToNow: 'חזרה לעכשיו',
+    atTime: 'בשעה',
+    byTrain: 'לפי רכבת',
+    byStation: 'לפי תחנה',
+    onDuty: 'בתפקיד',
+    deadhead: 'בנסיעת סרק',
+    standby: 'במוכנות',
+    operation: 'בפעולה',
+    taxi: 'במונית',
+    unknownSegment: 'מיקום לא ידוע',
+    handsOverTo: 'מוסר ל',
+    activeNow: (count: number) => (count === 1 ? 'פקח אחד בתפקיד' : `${count} פקחים בתפקיד`),
+    noneActive: 'אין פקחים בתפקיד בשעה זו',
+    noRoster: 'לא יובא סידור לתאריך זה',
+    date: 'תאריך',
+    // Said plainly and kept on screen: the source file has no timetable, so the
+    // position between two stations is derived, not reported.
+    estimateNotice:
+      'המיקום מחושב מזמני המשמרת וממרחקי התחנות — בקובץ הסידור אין לוח זמנים, ולכן זו הערכה ולא דיווח בזמן אמת.',
+    trainsRunning: (count: number) => `${count} רכבות`,
+    inspectorsAt: (count: number) => `${count} פקחים`,
+  },
+
   schedule: {
     title: 'כל המשמרות שלי',
     subtitle: 'השיבוצים הקרובים כפי שיובאו מקובץ הסידור',
@@ -607,6 +656,8 @@ export const he = {
     tomorrow: 'מחר',
     coveredBy: 'מכוסה על ידי',
     covering: 'משמרת כיסוי',
+    fullDetails: 'פרטים מלאים',
+    past: 'משמרות שהיו',
     shiftsOnDay: (count: number) => (count === 1 ? 'משמרת אחת' : `${count} משמרות`),
     countInRange: (shifts: number, days: number) =>
       `${shifts} משמרות ב-${days} ימים`,

@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "roster:import": "tsx scripts/import-roster.ts",
     "roster:backfill-homes": "tsx scripts/backfill-home-stations.ts",
+    "fix:timezone": "tsx scripts/fix-shift-timezone.ts",
     "push:test": "tsx scripts/send-test-push.ts",
     "bootstrap:production": "tsx scripts/bootstrap-production.ts"
   },

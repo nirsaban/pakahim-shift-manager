@@ -19,6 +19,7 @@ import {
   UserCheck,
   Bell,
   Settings,
+  Radar,
 } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { destroySession } from '@/lib/auth/session';
@@ -32,12 +33,13 @@ import {
   type RosterEntry,
 } from '@/lib/services/team-service';
 import { listIncidentsForUser } from '@/lib/services/incident-service';
-import { getUploadHistory } from '@/lib/services/upload-service';
 import {
-  getHandoffPartners,
+  getHandoffPartnersForDuties,
   getWorkerSchedule,
   getWorkerShiftWindow,
 } from '@/lib/services/worker-shift-service';
+import { getTrainCompanions } from '@/lib/services/train-companion-service';
+import { addIsraelDays, startOfIsraelDay } from '@/lib/time/zone';
 import {
   defaultWorkloadWindow,
   getTeamWorkload,
@@ -45,7 +47,6 @@ import {
 } from '@/lib/services/workload-service';
 import { getAnalyticsSnapshot } from '@/lib/services/analytics-service';
 import {
-  getPendingRequestForShift,
   getSameTeamCandidates,
   getShiftsCoveringFor,
   listPendingCoverageRequests,
@@ -68,11 +69,11 @@ import { Button } from '../_components/ui/Button';
 import { LogoutButton } from './_components/LogoutButton';
 import { ReportIncidentForm } from './_components/ReportIncidentForm';
 import { IncidentActions } from './_components/IncidentActions';
-import { RequestCoverageForm } from './_components/RequestCoverageForm';
 import { CoverageDecisionActions } from './_components/CoverageDecisionActions';
 import { DirectAssignForm } from './_components/DirectAssignForm';
 import { SwapSuggestionActions } from './_components/SwapSuggestionActions';
 import { ShiftDetail, ShiftSummary } from './_components/ShiftDetail';
+import { TrainCompanions } from './_components/TrainCompanions';
 import { MySchedule } from './_components/MySchedule';
 import { TeamWorkloadCard, WorkloadCard } from './_components/WorkloadCard';
 import { NotificationsPrompt } from './_components/NotificationsPrompt';
@@ -236,12 +237,17 @@ export default async function DashboardPage() {
  *  weekly workbook the scheduling department sends, with room to spare. */
 const SCHEDULE_DAYS = 14;
 
+/**
+ * The list looks backwards as well as forwards. A worker asking about a shift
+ * they already worked - which train, whose hand it went to - had nowhere to look
+ * once it ended, and that is the question that comes up after the fact.
+ */
+const SCHEDULE_DAYS_BACK = 7;
+
 async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
-  const scheduleFrom = new Date();
-  scheduleFrom.setHours(0, 0, 0, 0);
-  const scheduleTo = new Date(scheduleFrom);
-  scheduleTo.setDate(scheduleTo.getDate() + SCHEDULE_DAYS);
-  scheduleTo.setHours(23, 59, 59, 999);
+  const today = startOfIsraelDay(new Date());
+  const scheduleFrom = addIsraelDays(today, -SCHEDULE_DAYS_BACK);
+  const scheduleTo = addIsraelDays(today, SCHEDULE_DAYS + 1);
 
   const [window, teamLead, coveringFor, schedule, workload] = await Promise.all([
     getWorkerShiftWindow(userId),
@@ -268,13 +274,19 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
       }
     : null;
 
-  const [pendingRequest, candidates, handoffs] = await Promise.all([
-    primaryShift ? getPendingRequestForShift(primaryShift.id) : Promise.resolve(null),
-    teamId ? getSameTeamCandidates(teamId, userId) : Promise.resolve([]),
-    primaryShift?.duty
-      ? getHandoffPartners(primaryShift.duty.id)
-      : Promise.resolve({ takesOverFrom: null, handsOverTo: null }),
+  // The three window shifts each open out to the same detail, so their handoffs
+  // are fetched together rather than one lookup per card.
+  const windowDutyIds = [window.current, window.next, window.previous]
+    .map((s) => s?.duty?.id)
+    .filter((id): id is string => Boolean(id));
+  const [handoffsByDuty, trainCompanions] = await Promise.all([
+    getHandoffPartnersForDuties(windowDutyIds),
+    primaryShift?.duty ? getTrainCompanions(primaryShift.duty.id) : Promise.resolve([]),
   ]);
+
+  const handoffsFor = (shift: typeof primaryShift) =>
+    (shift?.duty && handoffsByDuty.get(shift.duty.id)) ?? { takesOverFrom: null, handsOverTo: null };
+  const handoffs = handoffsFor(primaryShift);
 
   return (
     <div className="flex flex-col gap-6">
@@ -328,15 +340,10 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
                 })()}
               </div>
             )}
-            {next.shift.status !== 'SICK' && next.shift.status !== 'HOLIDAY' && (
-              <div className="relative">
-                <RequestCoverageForm
-                  shiftId={next.shift.id}
-                  candidates={candidates}
-                  pending={pendingRequest ? { id: pendingRequest.id, reason: pendingRequest.reason } : null}
-                />
-              </div>
-            )}
+            {/* The worker-initiated "אני לא יכול/ה להגיע למשמרת" request was removed
+                at the client's request: coverage is arranged by phone with the
+                ראש צוות, who then records it here. The approval flow and direct
+                assignment are untouched - only the worker's entry point is gone. */}
           </div>
         ) : (
           <p className="relative mt-3 text-sm text-white/75">{he.dashboard.noUpcomingShifts}</p>
@@ -369,13 +376,26 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
         handsOverTo={handoffs.handsOverTo}
       />
 
-      {secondaryShift && <ShiftSummary title={he.roster.myShift.next} shift={secondaryShift} />}
+      <TrainCompanions trains={trainCompanions} />
+
+      {secondaryShift && (
+        <ShiftSummary
+          title={he.roster.myShift.next}
+          shift={secondaryShift}
+          handoffs={handoffsFor(secondaryShift)}
+        />
+      )}
 
       <MySchedule entries={schedule} days={SCHEDULE_DAYS} />
 
       <WorkloadCard workload={workload} />
 
-      <ShiftSummary title={he.roster.myShift.previous} shift={window.previous} tone="muted" />
+      <ShiftSummary
+        title={he.roster.myShift.previous}
+        shift={window.previous}
+        tone="muted"
+        handoffs={handoffsFor(window.previous)}
+      />
 
       <ReportIncidentForm teamLeadPhone={teamLead?.phone} />
     </div>
@@ -632,13 +652,16 @@ async function MaintenanceDashboard({ userId }: { userId: string }) {
 
 async function AdminDashboard() {
   const tenantId = await getDefaultTenantId();
-  const [uploads, analytics] = await Promise.all([getUploadHistory(tenantId), getAnalyticsSnapshot(tenantId)]);
+  const analytics = await getAnalyticsSnapshot(tenantId);
 
   return (
     <div className="flex flex-col gap-6">
       <PushServiceStatus tenantId={tenantId} />
 
-      <SwapSuggestionsPanel tenantId={tenantId} />
+      {/* Swap suggestions are a team-lead tool, not an admin one - they act on
+          one team's roster, and an admin has no standing to convert them. The
+          panel stays on the TEAM_LEAD dashboard. Upload history moved to its own
+          page (/admin/uploads), where each file can name the dates it wrote. */}
 
       <Card>
         <CardHeader title={he.admin.adminPanel} icon={<UploadCloud size={16} />} />
@@ -647,6 +670,18 @@ async function AdminDashboard() {
             <Button size="lg">
               <UploadCloud size={17} />
               {he.admin.uploadSchedule}
+            </Button>
+          </Link>
+          <Link href="/admin/uploads">
+            <Button size="lg" variant="secondary">
+              <History size={17} />
+              {he.admin.uploadHistory}
+            </Button>
+          </Link>
+          <Link href="/admin/commander">
+            <Button size="lg" variant="secondary">
+              <Radar size={17} />
+              {he.commander.title}
             </Button>
           </Link>
           <Link href="/admin/manage">
@@ -701,29 +736,6 @@ async function AdminDashboard() {
         </div>
       </Card>
 
-      <Card>
-        <CardHeader title={he.admin.uploadHistory} icon={<History size={16} />} />
-        <ul className="flex flex-col">
-          {uploads.map((file) => (
-            <li key={file.id} className="flex flex-col gap-1 border-t border-border py-3 first:border-0 first:pt-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-foreground">{file.filename}</span>
-                <Badge tone={file.status === 'FAILED' ? 'danger' : 'success'}>
-                  {uploadStatusLabel(file.status)}
-                </Badge>
-              </div>
-              <div className="text-sm text-muted">
-                {file.createdAt.toLocaleString('he-IL')}
-                {file.status === 'IMPORTED' && ` · ${file.importedShiftCount} משמרות`}
-                {file.errorMessage && ` · ${file.errorMessage}`}
-              </div>
-            </li>
-          ))}
-        </ul>
-        {uploads.length === 0 && (
-          <EmptyState icon={<History size={22} />}>{he.admin.noUploadsYet}</EmptyState>
-        )}
-      </Card>
     </div>
   );
 }
@@ -738,16 +750,5 @@ function reasonLabel(reason: string): string {
       return he.coverage.reasonSwap;
     default:
       return he.coverage.reasonOther;
-  }
-}
-
-function uploadStatusLabel(status: string): string {
-  switch (status) {
-    case 'IMPORTED':
-      return 'יובא בהצלחה';
-    case 'FAILED':
-      return 'נכשל';
-    default:
-      return status;
   }
 }

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { compareToTeam, computeWorkload, MIN_REST_MINUTES, type WorkloadShift } from './workload';
+import { israelTime } from '../time/zone';
 
-/** A shift on 2026-08-<day>, local time, from hh:mm for `hours`. */
+/**
+ * A shift on 2026-08-<day> from hh:00 for `hours`, in ISRAEL time.
+ *
+ * Built through the zone helper rather than `new Date(y, m, d, h)` so the
+ * night/weekend rules are exercised against the clock the rules are written for
+ * - otherwise this suite passes on a laptop in Israel and fails in CI.
+ */
 function shift(day: number, startHour: number, hours: number, status = 'SCHEDULED'): WorkloadShift {
-  const startTime = new Date(2026, 7, day, startHour, 0, 0, 0);
+  const startTime = israelTime(2026, 8, day, startHour * 60);
   const endTime = new Date(startTime.getTime() + hours * 60 * 60_000);
   return { startTime, endTime, status };
 }

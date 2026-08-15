@@ -8,6 +8,7 @@ import {
   soundProfile,
   type ReminderCandidate,
 } from './reminder-rules';
+import { israelTime } from '../time/zone';
 
 const SHIFT_START = new Date(2026, 7, 13, 14, 0, 0, 0);
 
@@ -106,5 +107,47 @@ describe('lead time options', () => {
   it('offers the default, and bounds the scheduler query by the largest option', () => {
     expect(isLeadMinutes(DEFAULT_LEAD_MINUTES)).toBe(true);
     expect(MAX_LEAD_MINUTES).toBe(90);
+  });
+});
+
+/**
+ * The regression this whole timezone change exists for.
+ *
+ * A 04:00 shift on 14.08.26 is 01:00Z, because Israel is on IDT (+3) in August.
+ * The importer used to build that instant with local-time setters on a UTC
+ * server, storing 04:00Z instead - so at 03:30 Israel time, when the worker
+ * needed telling, `isReminderDue` compared against a start three hours in the
+ * future and stayed silent, then fired at 06:30 for a shift already underway.
+ *
+ * Asserted in UTC on purpose: this must hold in CI and in the container alike.
+ */
+describe('a real roster shift, timed through the zone helper', () => {
+  const start = israelTime(2026, 8, 14, 4 * 60);
+
+  const candidate = (): ReminderCandidate => ({
+    shiftId: 's1',
+    userId: 'u1',
+    startTime: start,
+    leadMinutes: 30,
+    enabled: true,
+    alreadySent: false,
+  });
+
+  it('stores a 04:00 Israel shift as 01:00Z', () => {
+    expect(start.toISOString()).toBe('2026-08-14T01:00:00.000Z');
+  });
+
+  it('is due at 03:30 Israel time', () => {
+    const now = israelTime(2026, 8, 14, 3 * 60 + 30);
+    expect(isReminderDue(candidate(), now)).toBe(true);
+    expect(minutesUntil(start, now)).toBe(30);
+  });
+
+  it('is not yet due an hour before the lead window opens', () => {
+    expect(isReminderDue(candidate(), israelTime(2026, 8, 14, 2 * 60 + 30))).toBe(false);
+  });
+
+  it('has stopped being due once the shift has started', () => {
+    expect(isReminderDue(candidate(), israelTime(2026, 8, 14, 4 * 60 + 1))).toBe(false);
   });
 });

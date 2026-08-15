@@ -28,7 +28,10 @@ repeated header row:
   replacement/coverage field** — see "What this file does not contain" below.
 - `שעת התחלה` / `שעת סיום` — start/end time, inconsistently typed: plain `"HH:MM"` strings
   in some rows, Excel time-serial numbers (fractions of a day, anchored 1899-12-30) in
-  others — the parser reconciles both, reading serials with UTC getters.
+  others — the parser reconciles both, reading serials with LOCAL getters (see the note in
+  `lib/roster/sheet.ts`: the 1899 LMT offset makes the UTC getters wrong by 2h21m).
+  The minutes it yields are Israel wall clock, and are turned into instants through
+  `lib/time/zone.ts` — never with local-time setters. See `docs/modules/time-and-zones.md`.
 - Remaining columns — route description (free text, e.g. "איסוף לת"א סבידור מרכז"),
   train-set/car number codes, and a notes column (e.g. "פקח יחיד במערך כפול").
 

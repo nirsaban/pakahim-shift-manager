@@ -4,6 +4,7 @@ import type { ScheduleEntry } from '@/lib/services/worker-shift-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Badge } from '../../_components/ui/Badge';
 import { EmptyState } from '../../_components/ui/EmptyState';
+import { ShiftDetailBody } from './ShiftDetail';
 
 function hhmm(date: Date): string {
   return date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
@@ -109,6 +110,23 @@ export function MySchedule({ entries, days }: { entries: ScheduleEntry[]; days: 
                       <ShieldCheck size={13} className="shrink-0" />
                       {he.schedule.coveredBy} {entry.replacementName}
                     </span>
+                  )}
+
+                  {/* Native <details>: the whole list stays server-rendered and
+                      keeps working offline, which is the point of the PWA. */}
+                  {entry.duty && (
+                    <details className="mt-1 border-t border-border pt-2">
+                      <summary className="cursor-pointer text-sm font-medium text-muted">
+                        {he.schedule.fullDetails}
+                      </summary>
+                      <div className="mt-2">
+                        <ShiftDetailBody
+                          duty={entry.duty}
+                          takesOverFrom={entry.handoffs.takesOverFrom}
+                          handsOverTo={entry.handoffs.handsOverTo}
+                        />
+                      </div>
+                    </details>
                   )}
                 </div>
               ))}

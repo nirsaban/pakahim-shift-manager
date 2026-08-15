@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { israelMidnight } from '../time/zone';
 
 /** Roster dates are day-scoped; the sheet name is the only date the file carries. */
 export const rosterDateSchema = z
@@ -32,10 +33,14 @@ export const setHomeStationSchema = z.object({
 export type ListSwapsQuery = z.infer<typeof listSwapsQuerySchema>;
 export type SwapAction = z.infer<typeof swapActionSchema>;
 
-/** Parse a YYYY-MM-DD roster date into the local midnight the importer stores. */
+/**
+ * Parse a YYYY-MM-DD roster date into the exact instant the importer stores.
+ *
+ * Must stay in lockstep with lib/roster/sheet.ts's own date construction: these
+ * two values are compared for equality by every roster query, so a mismatch of
+ * even the UTC offset returns an empty day rather than an error.
+ */
 export function toRosterDate(value: string): Date {
   const [y, m, d] = value.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return israelMidnight(y, m, d);
 }

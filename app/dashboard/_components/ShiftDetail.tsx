@@ -1,7 +1,7 @@
 import { ArrowLeftRight, MapPin, MessageCircle, Route, TrainFront, Wrench } from 'lucide-react';
 import { he, opLabel, transportLabel } from '@/lib/he';
 import { toWhatsAppLink } from '@/lib/utils/whatsapp';
-import type { HandoffPartner } from '@/lib/services/worker-shift-service';
+import type { HandoffPair, HandoffPartner } from '@/lib/services/worker-shift-service';
 import { lineNameHe, stationNameHe } from '@/lib/services/worker-shift-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Badge } from '../../_components/ui/Badge';
@@ -90,7 +90,30 @@ function HandoffRow({ title, partner }: { title: string; partner: HandoffPartner
  * to. Everything here is derived from the roster's shift string — the raw code
  * is shown at the bottom so it can be checked against the original file.
  */
-export function ShiftDetail({
+export function ShiftDetail(props: {
+  duty: Duty | null;
+  takesOverFrom: HandoffPartner | null;
+  handsOverTo: HandoffPartner | null;
+}) {
+  if (!props.duty) return null;
+
+  return (
+    <Card>
+      <CardHeader title={he.roster.myShift.details} icon={<Route size={16} />} />
+      <ShiftDetailBody {...props} />
+    </Card>
+  );
+}
+
+/**
+ * The same detail without the card around it, for embedding in a list row.
+ *
+ * Split out when the detail stopped being something only the current shift got:
+ * every shift in the schedule, and the one just finished, open out to exactly
+ * this — a worker asking "what did I actually do yesterday" gets the same
+ * answer as the one asking about right now.
+ */
+export function ShiftDetailBody({
   duty,
   takesOverFrom,
   handsOverTo,
@@ -112,9 +135,7 @@ export function ShiftDetail({
   const lines = [...new Set(dutyTrains.map((l) => lineNameHe(l.lineCode)).filter(Boolean))];
 
   return (
-    <Card>
-      <CardHeader title={he.roster.myShift.details} icon={<Route size={16} />} />
-
+    <>
       {/* Four distinct points, because conflating them misleads: where to BE,
           where duty actually begins, where it ends, and where you end up. This
           inspector rides 238bt out of Lod, works 629-647, then rides 519bt home
@@ -213,19 +234,28 @@ export function ShiftDetail({
           {duty.shiftString}
         </p>
       </details>
-    </Card>
+    </>
   );
 }
 
-/** Compact summary used for the previous / next shift when it is not the main card. */
+/**
+ * Compact summary used for the previous / next shift when it is not the main card.
+ *
+ * It opens out to the full detail when the duty behind it was parsed. The
+ * previous shift needed that as much as the current one does: "what was the
+ * train I handed over yesterday, and to whom" is asked after the fact, not
+ * during, and until now the answer disappeared the moment the shift ended.
+ */
 export function ShiftSummary({
   title,
   shift,
   tone,
+  handoffs,
 }: {
   title: string;
-  shift: { startTime: Date; endTime: Date; duty: { routeNote: string | null; startStation: string | null; endStation: string | null } | null } | null;
+  shift: { startTime: Date; endTime: Date; duty: Duty | null } | null;
   tone?: 'muted';
+  handoffs?: HandoffPair;
 }) {
   return (
     <Card>
@@ -245,6 +275,21 @@ export function ShiftSummary({
             <span className="text-sm text-muted">
               {stationNameHe(shift.duty.startStation) ?? '—'} → {stationNameHe(shift.duty.endStation) ?? '—'}
             </span>
+          )}
+
+          {shift.duty && (
+            <details className="mt-1 border-t border-border pt-2">
+              <summary className="cursor-pointer text-sm font-medium text-muted">
+                {he.schedule.fullDetails}
+              </summary>
+              <div className="mt-2">
+                <ShiftDetailBody
+                  duty={shift.duty}
+                  takesOverFrom={handoffs?.takesOverFrom ?? null}
+                  handsOverTo={handoffs?.handsOverTo ?? null}
+                />
+              </div>
+            </details>
           )}
         </div>
       ) : (

@@ -51,7 +51,7 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 
 ### ⚠ Open conflicts to resolve before building further
 1. **Notification channel** — ~~partly resolved 2026-08-13~~: WhatsApp is now a real channel, via Baileys running **in-process inside the Next.js app** (`lib/whatsapp/service.ts`), paired by an admin at `/admin/whatsapp` and persisted in the `WhatsAppSession` table so a deploy re-pairs itself. A separate gateway container (the GeniriBot/kesher shape) was considered and rejected: a second image, CI job and compose service is disproportionate for a one-container app.
-   **Scope of the decision is OTP delivery only** — login and registration codes go out over WhatsApp with email as the fallback. Incident/coverage notifications still run on FCM + email, so Non-Negotiable Convention #6 stands for those and the client's broader "WhatsApp notifications" ask is still open.
+   **Scope of the decision is OTP delivery only** — login and registration codes go out over WhatsApp with email as the fallback. Incident/coverage notifications still run on FCM + email, so Non-Negotiable Convention #7 (push) stands for those and the client's broader "WhatsApp notifications" ask is still open.
 2. **"פטיש"** — used by the client as whoever approves leave/sick/holiday requests. Unclear if this is a distinct role, a nickname for ראש צוות, or a speech-to-text transcription artifact. Confirm with the client before mapping it to `TEAM_LEAD` or a new role.
 3. **Terminology** — ~~resolved 2026-08-12~~: every identifier (`UserRole.TAKAHIM` → `PAKAHIM`, `TakahimDashboard` → `PakahimDashboard`, package name, repo name, GHCR image, VPS deploy path, container names, domain) renamed "Takahim" → "Pakahim," the client-chosen English identifier — **פקח** remains the Hebrew term used throughout the UI copy in `lib/he.ts`, unaffected by this rename either way.
 4. **Auto-sync of the daily Excel** — client wants zero-click ingestion the moment scheduling emails the file; today it requires a manual admin upload. Needs a decision on mechanism (inbox polling vs. watched folder vs. keeping it manual for now).
@@ -124,18 +124,28 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 - `src/lib/validation/` contains all schemas
 - Middleware validates JWT + session liveness before route access
 
-### 5. Security
+### 5. Time is Israel time
+- Every roster time is Israel wall clock. Build and read instants through `lib/time/zone.ts`
+  (`israelTime`, `israelMidnight`, `israelDateKey`, `addIsraelDays`, `formatIsraelTime`) —
+  **never** `new Date(y, m, d)`, `setHours`, `getDay` or `+86400000`, all of which read the
+  server's zone and were how a UTC container stored every shift three hours late.
+- `TZ=Asia/Jerusalem` is set in the image, but no data path may depend on it: the suite runs
+  under `TZ=UTC`, `Asia/Jerusalem` and `America/New_York` and must pass in all three.
+- See `docs/modules/time-and-zones.md`, including the DST rules and the one-time repair
+  script (`npm run fix:timezone`).
+
+### 6. Security
 - No secrets in repo; use `.env.example` for all env vars
 - Excel uploads: validate file structure before importing
 - Firebase FCM secrets: server-side only (env vars)
 - Passwords: hash with Argon2, never store plain text
 
-### 6. Push Notifications
+### 7. Push Notifications
 - FCM for real-time incident alerts to team leads
 - Graceful fallback: in-app notification if device not registered
 - Incident report payload must include: reporter ID, team, timestamp, description
 
-### 7. Data Model
+### 8. Data Model
 - Workers: name, phone, city, worker_number, team_id, tenant_id
 - Shifts: worker_id, start_time, end_time, date, team_id, tenant_id
 - Incidents: worker_id, team_lead_id, title, description, created_at, resolved_at, tenant_id
