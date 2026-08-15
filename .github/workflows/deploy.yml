@@ -164,8 +164,15 @@ jobs:
             echo "--- app clock"
             docker exec pakahim-app date
             echo "--- boot repair log"
-            docker compose -f /opt/pakahim/docker-compose.prod.yml --env-file /opt/pakahim/.env.prod \
-              logs app 2>&1 | grep '\[timezone\]' | tail -20 || echo "(no [timezone] lines yet)"
+            LOGS=$(docker compose -f /opt/pakahim/docker-compose.prod.yml --env-file /opt/pakahim/.env.prod \
+              logs app 2>&1 | grep '\[timezone\]' | tail -20 || true)
+            # Empty means the entrypoint step did not run at all - which would mean
+            # the repair is not self-healing, so say so rather than printing nothing.
+            if [ -z "$LOGS" ]; then
+              echo "::warning::no [timezone] lines in the app log - the boot repair did not run"
+            else
+              echo "$LOGS"
+            fi
             echo "--- rows still holding pre-fix times (must be 0)"
             docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
               "SELECT count(*) FILTER (WHERE date::time='00:00:00') AS need_repair, count(*) AS total FROM shifts;"
