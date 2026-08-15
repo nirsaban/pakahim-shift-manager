@@ -142,6 +142,42 @@ jobs:
             docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}"
           ENDSSH
 
+      # The roster's hours are the product. This prints, on every deploy, what
+      # the boot-time timezone repair did and what the database now holds - so a
+      # shift reading three hours out is caught here rather than by a worker
+      # turning up at the wrong time.
+      - name: Verify roster times
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i $HOME/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4"
+          ssh $SSH_OPTS "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" bash -s << 'ENDSSH'
+            set -e
+            echo "--- app clock"
+            docker exec pakahim-app date
+            echo "--- boot repair log"
+            docker compose -f /opt/pakahim/docker-compose.prod.yml --env-file /opt/pakahim/.env.prod \
+              logs app 2>&1 | grep '\[timezone\]' | tail -20 || echo "(no [timezone] lines yet)"
+            echo "--- rows still holding pre-fix times (must be 0)"
+            docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
+              "SELECT count(*) FILTER (WHERE date::time='00:00:00') AS need_repair, count(*) AS total FROM shifts;"
+            echo "--- next five shifts, as Israel reads them"
+            docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
+              "SELECT to_char(\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem','DD.MM HH24:MI'),
+                      to_char(\"endTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem','HH24:MI'),
+                      coalesce(region,'-')
+               FROM shifts WHERE \"startTime\" > now() - interval '1 day'
+               ORDER BY \"startTime\" LIMIT 5;"
+          ENDSSH
+
       - name: Health check
         env:
           DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
