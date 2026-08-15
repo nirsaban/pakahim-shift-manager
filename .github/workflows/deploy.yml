@@ -201,6 +201,29 @@ jobs:
             echo "--- rows still holding pre-fix times (must be 0)"
             docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
               "SELECT count(*) FILTER (WHERE date::time='00:00:00') AS need_repair, count(*) AS total FROM shifts;"
+            echo "--- do the displayed hours match the minutes parsed out of the Excel?"
+            # duties.startMinutes/endMinutes are the raw numbers read from the
+            # sheet. If the shift instant, rendered in Israel, disagrees with
+            # them by even a minute, the hours on someone's phone are wrong.
+            docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
+              "SELECT count(*) AS mismatched_start, count(*) FILTER (WHERE true) AS checked
+               FROM shifts s JOIN duties d ON d.\"shiftId\" = s.id
+               WHERE d.\"startMinutes\" IS NOT NULL
+                 AND (extract(hour FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem')*60
+                    + extract(minute FROM s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem'))
+                     <> d.\"startMinutes\";"
+            echo "--- worker 797433, every shift on record"
+            docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
+              "SELECT coalesce(u.\"firstName\",'?') AS name,
+                      to_char(s.\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem','DD.MM HH24:MI') AS shows,
+                      lpad((d.\"startMinutes\"/60)::text,2,'0')||':'||lpad((d.\"startMinutes\"%60)::text,2,'0') AS excel_says,
+                      to_char(s.\"endTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem','HH24:MI') AS ends,
+                      lpad(((d.\"endMinutes\"%1440)/60)::text,2,'0')||':'||lpad((d.\"endMinutes\"%60)::text,2,'0') AS excel_end,
+                      s.\"startTime\" AS stored_utc
+               FROM users u JOIN shifts s ON s.\"workerId\" = u.id
+               LEFT JOIN duties d ON d.\"shiftId\" = s.id
+               WHERE u.\"workerNumber\" = '797433'
+               ORDER BY s.\"startTime\" DESC LIMIT 10;"
             echo "--- next five shifts, as Israel reads them"
             docker exec pakahim-db psql -U pakahim -d pakahim -t -A -F' | ' -c \
               "SELECT to_char(\"startTime\" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem','DD.MM HH24:MI'),
