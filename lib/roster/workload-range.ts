@@ -23,18 +23,17 @@ export const WORKLOAD_RANGES = ['week', 'month', 'year'] as const;
 export type WorkloadRange = (typeof WORKLOAD_RANGES)[number];
 
 /**
- * A month back is the default: a week is too few shifts to tell a heavy roster
- * from an ordinary one, and a year buries this month under last winter's.
+ * The current month is the default: a week is too few shifts to tell a heavy
+ * roster from an ordinary one, and a year buries this month under last winter's.
  */
 export const DEFAULT_WORKLOAD_RANGE: WorkloadRange = 'month';
 
 /**
  * Midnight in Israel, `months` calendar months before a date, clamped.
  *
- * Naive month arithmetic on the 31st lands on the 3rd of the *current* month,
- * which would silently shorten the window to three days for anyone opening the
- * app on the 31st. One month back from the 31st of March is the last day of
- * February.
+ * Naive month arithmetic on a day the target month does not have overflows into
+ * the month after it, which would silently shorten the window. A year back from
+ * the 29th of February is the 28th, not the 1st of March.
  */
 function midnightMonthsBack(year: number, month: number, day: number, months: number): Date {
   const monthIndex = month - 1 - months;
@@ -62,8 +61,12 @@ export function workloadWindowFor(range: WorkloadRange, now: Date = new Date()):
   switch (range) {
     case 'week':
       return { from: israelMidnight(year, month, day - 7), to };
+    // The calendar month, not a rolling thirty days: a worker comparing their
+    // load against a monthly quota, or against what they remember of last
+    // month, is counting from the 1st. A window that also carried half of the
+    // previous month in could never be reconciled with either.
     case 'month':
-      return { from: midnightMonthsBack(year, month, day, 1), to };
+      return { from: israelMidnight(year, month, 1), to };
     case 'year':
       return { from: midnightMonthsBack(year, month, day, 12), to };
   }

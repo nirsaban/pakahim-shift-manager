@@ -37,9 +37,24 @@ describe('workloadWindowFor', () => {
     expect(parts(from)).toMatchObject({ year: 2026, month: 8, day: 6 });
   });
 
-  it('looks a calendar month back', () => {
+  it('starts the month range on the 1st of the current month, not thirty days back', () => {
     const { from } = workloadWindowFor('month', NOW);
-    expect(parts(from)).toMatchObject({ year: 2026, month: 7, day: 13 });
+    expect(parts(from)).toMatchObject({ year: 2026, month: 8, day: 1 });
+  });
+
+  it('collapses the month range to today alone on the 1st', () => {
+    // The month has one day in it, and the card should say so rather than
+    // quietly reaching back into a month the worker was not asking about.
+    const { from, to } = workloadWindowFor('month', israelTime(2026, 9, 1, 9 * 60));
+    expect(parts(from)).toMatchObject({ year: 2026, month: 9, day: 1, hour: 0, minute: 0 });
+    expect(parts(to)).toMatchObject({ year: 2026, month: 9, day: 1, hour: 23, minute: 59 });
+  });
+
+  it('never carries the previous month in, whatever day of the month it is', () => {
+    for (const day of [1, 2, 15, 28, 31]) {
+      const { from } = workloadWindowFor('month', israelTime(2026, 3, day, 9 * 60));
+      expect(parts(from)).toMatchObject({ year: 2026, month: 3, day: 1 });
+    }
   });
 
   it('looks a calendar year back', () => {
@@ -56,15 +71,8 @@ describe('workloadWindowFor', () => {
   });
 
   it('crosses a year boundary on the way back', () => {
-    const { from } = workloadWindowFor('month', israelTime(2026, 1, 9, 9 * 60));
-    expect(parts(from)).toMatchObject({ year: 2025, month: 12, day: 9 });
-  });
-
-  it('clamps a month back from the 31st to the end of the shorter month', () => {
-    // Naive month arithmetic would land on 2026-03-03 and shorten the window to
-    // three days for anyone opening the app on the 31st.
-    const { from } = workloadWindowFor('month', israelTime(2026, 3, 31, 9 * 60));
-    expect(parts(from)).toMatchObject({ year: 2026, month: 2, day: 28 });
+    const { from } = workloadWindowFor('year', israelTime(2026, 1, 9, 9 * 60));
+    expect(parts(from)).toMatchObject({ year: 2025, month: 1, day: 9 });
   });
 
   it('clamps a year back from a leap day', () => {
@@ -92,7 +100,7 @@ describe('parseWorkloadRange', () => {
     }
   });
 
-  it('defaults to the last month', () => {
+  it('defaults to the current month', () => {
     expect(DEFAULT_WORKLOAD_RANGE).toBe('month');
   });
 });
