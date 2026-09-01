@@ -2,11 +2,13 @@ import { BarChart3, CalendarRange, Moon, Repeat, Timer, TriangleAlert, Users } f
 import type { ReactNode } from 'react';
 import { he, hoursLabel } from '@/lib/he';
 import type { WorkloadMetrics } from '@/lib/roster/workload';
+import type { WorkloadRange } from '@/lib/roster/workload-range';
 import type { TeamMemberWorkload, WorkerWorkload } from '@/lib/services/workload-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Badge } from '../../_components/ui/Badge';
 import { EmptyState } from '../../_components/ui/EmptyState';
 import { formatIsraelDate, formatIsraelDateTime } from '@/lib/time/zone';
+import { WorkloadRangeTabs } from './WorkloadRangeTabs';
 
 function shortDate(date: Date): string {
   return formatIsraelDate(date, { day: '2-digit', month: '2-digit' });
@@ -62,7 +64,7 @@ function RestWarnings({ metrics }: { metrics: WorkloadMetrics }) {
 }
 
 /** How the worker's own roster reads: hours, nights, weekends, rest, and fairness. */
-export function WorkloadCard({ workload }: { workload: WorkerWorkload }) {
+export function WorkloadCard({ workload, range }: { workload: WorkerWorkload; range: WorkloadRange }) {
   const { metrics, comparison, window } = workload;
 
   return (
@@ -70,12 +72,12 @@ export function WorkloadCard({ workload }: { workload: WorkerWorkload }) {
       <CardHeader
         title={he.workload.title}
         icon={<BarChart3 size={16} />}
-        action={
-          <span className="text-xs text-muted">
-            {he.workload.range(shortDate(window.from), shortDate(window.to))}
-          </span>
-        }
+        action={<WorkloadRangeTabs active={range} />}
       />
+
+      <p className="-mt-2 mb-3 text-xs text-muted">
+        {he.workload.range(shortDate(window.from), shortDate(window.to))}
+      </p>
 
       {metrics.shiftCount === 0 && metrics.absenceCount === 0 ? (
         <EmptyState icon={<BarChart3 size={22} />}>{he.workload.empty}</EmptyState>
@@ -159,22 +161,24 @@ export function TeamWorkloadCard({
   members,
   averageMinutes,
   window,
+  range,
 }: {
   members: TeamMemberWorkload[];
   averageMinutes: number | null;
   window: { from: Date; to: Date };
+  range: WorkloadRange;
 }) {
   return (
     <Card>
       <CardHeader
         title={he.workload.teamTitle}
         icon={<BarChart3 size={16} />}
-        action={
-          <span className="text-xs text-muted">
-            {he.workload.range(shortDate(window.from), shortDate(window.to))}
-          </span>
-        }
+        action={<WorkloadRangeTabs active={range} />}
       />
+
+      <p className="-mt-2 mb-3 text-xs text-muted">
+        {he.workload.range(shortDate(window.from), shortDate(window.to))}
+      </p>
 
       {members.length === 0 ? (
         <EmptyState icon={<Users size={22} />}>{he.workload.empty}</EmptyState>

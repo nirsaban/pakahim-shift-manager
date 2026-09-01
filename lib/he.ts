@@ -698,6 +698,12 @@ export const he = {
     teamTitle: 'עומס עבודה בצוות',
     teamSubtitle: 'לפי סך שעות בטווח - הכבד ביותר למעלה',
     range: (from: string, to: string) => `${from} - ${to}`,
+    rangeLabel: 'טווח זמן',
+    ranges: {
+      week: 'שבוע',
+      month: 'חודש',
+      year: 'שנה',
+    },
     empty: 'אין נתוני שיבוץ בטווח זה',
     noShifts: 'ללא שיבוצים',
     shifts: 'משמרות',

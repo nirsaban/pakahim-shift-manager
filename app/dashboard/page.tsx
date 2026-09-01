@@ -46,11 +46,12 @@ import {
   formatIsraelTime,
   startOfIsraelDay,
 } from '@/lib/time/zone';
+import { getTeamWorkload, getWorkerWorkload } from '@/lib/services/workload-service';
 import {
-  defaultWorkloadWindow,
-  getTeamWorkload,
-  getWorkerWorkload,
-} from '@/lib/services/workload-service';
+  parseWorkloadRange,
+  workloadWindowFor,
+  type WorkloadRange,
+} from '@/lib/roster/workload-range';
 import { getAnalyticsSnapshot } from '@/lib/services/analytics-service';
 import {
   getSameTeamCandidates,
@@ -171,7 +172,15 @@ function RosterList({ entries, showTeam }: { entries: RosterEntry[]; showTeam: b
   );
 }
 
-export default async function DashboardPage() {
+/** `?load=week|month|year` — which span the workload cards are measured over. */
+const WORKLOAD_RANGE_PARAM = 'load';
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const workloadRange = parseWorkloadRange((await searchParams)[WORKLOAD_RANGE_PARAM]);
   const headersList = await headers();
   const userId = headersList.get('x-user-id') as string;
   const role = headersList.get('x-user-role') as string;
@@ -220,8 +229,12 @@ export default async function DashboardPage() {
             so the chosen tone can be played by a page that is actually open. */}
         <AlertSoundPlayer />
 
-        {role === 'PAKAHIM' && <PakahimDashboard userId={userId} teamId={user.teamId} />}
-        {role === 'TEAM_LEAD' && <TeamLeadDashboard userId={userId} tenantId={user.tenantId} />}
+        {role === 'PAKAHIM' && (
+          <PakahimDashboard userId={userId} teamId={user.teamId} workloadRange={workloadRange} />
+        )}
+        {role === 'TEAM_LEAD' && (
+          <TeamLeadDashboard userId={userId} tenantId={user.tenantId} workloadRange={workloadRange} />
+        )}
         {role === 'MAINTENANCE' && <MaintenanceDashboard userId={userId} />}
         {(role === 'SHIBUTZ' || role === 'ADMIN' || role === 'SUPER_ADMIN') && <AdminDashboard />}
       </div>
@@ -250,7 +263,15 @@ const SCHEDULE_DAYS = 14;
  */
 const SCHEDULE_DAYS_BACK = 7;
 
-async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: string | null }) {
+async function PakahimDashboard({
+  userId,
+  teamId,
+  workloadRange,
+}: {
+  userId: string;
+  teamId: string | null;
+  workloadRange: WorkloadRange;
+}) {
   const today = startOfIsraelDay(new Date());
   const scheduleFrom = addIsraelDays(today, -SCHEDULE_DAYS_BACK);
   const scheduleTo = addIsraelDays(today, SCHEDULE_DAYS + 1);
@@ -260,7 +281,7 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
     teamId ? getTeamLeadContact(teamId) : Promise.resolve(null),
     getShiftsCoveringFor(userId),
     getWorkerSchedule(userId, { from: scheduleFrom, to: scheduleTo }),
-    getWorkerWorkload(userId, teamId),
+    getWorkerWorkload(userId, teamId, workloadWindowFor(workloadRange)),
   ]);
 
   // The shift in progress is the one that matters now; otherwise the next one.
@@ -394,7 +415,7 @@ async function PakahimDashboard({ userId, teamId }: { userId: string; teamId: st
 
       <MySchedule entries={schedule} days={SCHEDULE_DAYS} />
 
-      <WorkloadCard workload={workload} />
+      <WorkloadCard workload={workload} range={workloadRange} />
 
       <ShiftSummary
         title={he.roster.myShift.previous}
@@ -524,10 +545,18 @@ async function SwapSuggestionsPanel({ tenantId }: { tenantId: string }) {
   );
 }
 
-async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantId: string }) {
+async function TeamLeadDashboard({
+  userId,
+  tenantId,
+  workloadRange,
+}: {
+  userId: string;
+  tenantId: string;
+  workloadRange: WorkloadRange;
+}) {
   const teams = await getTeamsLedBy(userId);
   const teamIds = teams.map((t) => t.id);
-  const workloadWindow = defaultWorkloadWindow();
+  const workloadWindow = workloadWindowFor(workloadRange);
   const [roster, members, incidents, pendingRequests, teamWorkload] = await Promise.all([
     teamIds.length ? getUpcomingRoster(teamIds) : Promise.resolve([]),
     teamIds.length ? getTeamStatus(teamIds) : Promise.resolve([]),
@@ -598,6 +627,7 @@ async function TeamLeadDashboard({ userId, tenantId }: { userId: string; tenantI
         members={teamWorkload.members}
         averageMinutes={teamWorkload.averageMinutes}
         window={teamWorkload.window}
+        range={workloadRange}
       />
 
       <Card>

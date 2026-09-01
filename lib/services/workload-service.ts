@@ -1,5 +1,10 @@
 import { prisma } from '../db/prisma';
 import { compareToTeam, computeWorkload, type WorkloadMetrics } from '../roster/workload';
+import {
+  DEFAULT_WORKLOAD_RANGE,
+  workloadWindowFor,
+  type WorkloadWindow,
+} from '../roster/workload-range';
 import { formatWorkerName } from '../utils/display-name';
 
 /**
@@ -7,26 +12,15 @@ import { formatWorkerName } from '../utils/display-name';
  *
  * The metrics themselves live in lib/roster/workload.ts and are pure; this layer
  * only decides which shifts to feed them and how to fan the same calculation
- * across a team.
+ * across a team. Which span "which shifts" means is the caller's choice, out of
+ * the three in lib/roster/workload-range.ts.
  */
 
-/** Default window: the fortnight behind and the fortnight ahead of today. */
-const DEFAULT_DAYS_BACK = 14;
-const DEFAULT_DAYS_FORWARD = 14;
+export type { WorkloadWindow };
 
-export interface WorkloadWindow {
-  from: Date;
-  to: Date;
-}
-
+/** The window a card opens on before anyone touches the range tabs. */
 export function defaultWorkloadWindow(): WorkloadWindow {
-  const from = new Date();
-  from.setHours(0, 0, 0, 0);
-  from.setDate(from.getDate() - DEFAULT_DAYS_BACK);
-  const to = new Date();
-  to.setHours(23, 59, 59, 999);
-  to.setDate(to.getDate() + DEFAULT_DAYS_FORWARD);
-  return { from, to };
+  return workloadWindowFor(DEFAULT_WORKLOAD_RANGE);
 }
 
 /** A worker's own metrics, plus where they sit against their team. */
