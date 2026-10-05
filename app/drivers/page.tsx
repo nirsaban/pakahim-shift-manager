@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { CalendarClock, Upload } from 'lucide-react';
@@ -9,6 +10,7 @@ import { Brand } from '../_components/Brand';
 import { PageHeader } from '../_components/ui/PageHeader';
 import { Card } from '../_components/ui/Card';
 import { EmptyState } from '../_components/ui/EmptyState';
+import { Button } from '../_components/ui/Button';
 import { LogoutButton } from '../dashboard/_components/LogoutButton';
 
 /**
@@ -44,10 +46,12 @@ export default async function DriversHomePage() {
           <EmptyState icon={<CalendarClock size={28} />}>{he.drivers.home.comingSoon}</EmptyState>
         </Card>
         {user.isRosterAdmin && (
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <Upload size={14} className="shrink-0" />
-            {he.drivers.home.rosterAdminNote}
-          </p>
+          <Link href="/drivers/upload">
+            <Button variant="secondary" size="lg" className="w-full">
+              <Upload size={16} />
+              {he.drivers.home.uploadRoster}
+            </Button>
+          </Link>
         )}
       </div>
     </main>

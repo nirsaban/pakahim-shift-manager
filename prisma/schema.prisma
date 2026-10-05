@@ -756,6 +756,7 @@ model DriverDuty {
   companionRole         String?
   companionName         String?
   companionWorkerNumber String?
+  companionMirs         String? // the second Mirs printed on the line
 
   createdAt DateTime @default(now())
 

@@ -4,9 +4,9 @@ A second workforce on the same app, added 2026-10-05 after the פקחים versio
 Same idea (log in, see today's shift), different people and different source files.
 The rule throughout is **don't mix**: the פקחים app must behave exactly as before.
 
-Status: phases 0–2 are done: tenant safety, data model and contacts import, and login.
-Roster PDF upload (phase 3) and the driver screen (phase 4) are next. `/drivers` is a
-placeholder that greets the driver.
+Status: phases 0–3 are done: tenant safety, data model and contacts import, login, and
+roster PDF upload. The driver screen (phase 4) is next. `/drivers` greets the driver,
+and for the roster admin it links to the upload.
 
 ## Scope (from the user, 2026-10-05)
 
@@ -116,3 +116,75 @@ form is `DriverLogin`, backed by four public routes under `/api/drivers/auth/`:
   - first login: `drv-reg:{tenantId}:{workerNumber}`;
   - later logins: `drv:{userId}`.
   - Neither can collide with a פקחים code.
+
+## Roster upload
+
+The roster admin uploads the PDF at `/drivers/upload`.
+- "בדוק קובץ" runs the import with `publish=false` and shows what would be written:
+  counts, drivers missing from the contact list, skipped sections, and warnings in Hebrew.
+- "פרסם סידור" runs the same call with `publish=true`.
+- API: `POST /api/drivers/roster` (multipart `file`, `publish`).
+  - Allowed only when `findRosterAdmin` passes. It reads the database, not the session,
+    so revoking `isRosterAdmin` takes effect at once.
+  - The file is checked by content (`%PDF-`) and capped at 10MB.
+
+### Report format (`lib/driver-roster/roster.ts`)
+
+"דוח סידור עבודה יומי" is a Crystal Reports table drawn as loose text, so rows and
+columns are rebuilt from positions.
+
+**Columns** are fixed x-bands on the page, measured on the 01.10.2026 report, right to left:
+
+| Column | x from (pt) |
+| --- | --- |
+| name / worker numbers | ≥500 |
+| Mirs | 458 |
+| # | 440 |
+| task (משימה) | 108 |
+| origin (תחנת מוצא) | 68 |
+| planned end | 33 |
+| start | 0 |
+
+Names are right-aligned, so the name column is decided by an item's **right** edge: a
+long name starts left of 500.
+
+**Page furniture:**
+- Header: everything above y=740, with the title, the report date and the section
+  ("מחלקה: דרום נהגים").
+- Footer: everything below y=65 ("1 of 15", the department contact line).
+
+**Rows:**
+- A row starts at its start time and owns everything down to the next start time.
+- A task that runs past the bottom of a page continues above the next page's first start
+  time, and is joined back on.
+- The name column, top to bottom, holds:
+  - the driver's name, then their worker number;
+  - optionally "חונך …" or "צופה …", that person's name (it may wrap) and their number.
+- The second Mirs on a line belongs to that trainee or observer.
+- The `*` and the yellow highlight mean nothing, and are dropped.
+
+**Origin stations wrap over two or three lines** in three ways, and `joinOrigin` handles each:
+- at a space: "אוטם" / "סבידור";
+- at an underscore: "_מתחם" / "אשקלון";
+- inside a word: "ראש_הע" / "ין_צפון".
+
+**Train numbers** are the standalone numbers in the task. Tagged tokens like "233בת"
+and times are left out.
+
+**Sections:** only **דרום נהגים** is read. Other sections are reported as skipped.
+
+### Publishing (`lib/driver-roster/roster-plan.ts`, `lib/services/driver-roster-service.ts`)
+
+- **Times:**
+  - Times are Israel wall clock (`israelTime`).
+  - A shift whose end is at or before its start ends the next day.
+- **Re-upload keeps shifts:**
+  - Each driver's existing shift for that date is updated in place, not replaced.
+  - Pre-shift reminders are de-duplicated per shift id, so a fresh id would remind the
+    driver twice.
+  - Shifts the new file no longer has are deleted.
+- **Drivers missing from the contact list** (8 in the 01.10 file) are created as DRIVER
+  users with name and number. They have no phone, so they cannot log in until one is added.
+- **Rows with no worker number** are listed and not published.
+- **Storage:** times go on `Shift`, the rest on `DriverDuty`.
+- **History:** every publish leaves a `ShiftFile` in the drivers tenant.
