@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySessionJwt } from './lib/auth/jwt';
 import { isSessionLive } from './lib/auth/session';
+import { canAccessPath, homePathFor } from './lib/auth/workforce';
 
 const PUBLIC_PATHS = new Set([
   '/',
@@ -42,6 +43,16 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // Each workforce (פקחים / locomotive drivers) is confined to its own half of
+  // the app. A page request is sent home rather than shown an error - the
+  // common case is a bookmark or a push link from the other app.
+  if (!canAccessPath(pathname, payload.workforce)) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL(homePathFor(payload.workforce), request.url));
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-user-id', payload.userId);
   // Routes need this to tear down a session whose user no longer exists - the
@@ -49,6 +60,7 @@ export async function proxy(request: NextRequest) {
   // still is.
   requestHeaders.set('x-session-id', payload.sessionId);
   requestHeaders.set('x-user-role', payload.role);
+  requestHeaders.set('x-workforce', payload.workforce);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

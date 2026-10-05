@@ -22,7 +22,8 @@ async function main(): Promise<void> {
 
   const file = process.argv[2] ?? path.join('fixtures', 'rosters', '13.08.26.xlsx');
 
-  const tenant = await prisma.tenant.findFirst();
+  // By slug, not findFirst(): the drivers tenant is a second row.
+  const tenant = await prisma.tenant.findUnique({ where: { slug: 'default' } });
   if (!tenant) throw new Error('No tenant found — run `npm run db:seed` first.');
 
   const uploader = await prisma.user.findFirst({

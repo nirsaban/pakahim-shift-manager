@@ -15,7 +15,8 @@ async function main(): Promise<void> {
   const { prisma } = await import('../lib/db/prisma');
   const { backfillHomeStations, listUnresolvedAliases } = await import('../lib/services/station-service');
 
-  const tenant = await prisma.tenant.findFirst();
+  // By slug, not findFirst(): the drivers tenant is a second row.
+  const tenant = await prisma.tenant.findUnique({ where: { slug: 'default' } });
   if (!tenant) throw new Error('No tenant found — run `npm run db:seed` first.');
 
   const { resolved, unresolved } = await backfillHomeStations(tenant.id);

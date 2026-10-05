@@ -1,11 +1,13 @@
 import { randomBytes } from 'crypto';
 import { redis } from '../redis';
+import type { Workforce } from './workforce';
 
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface SessionData {
   userId: string;
   role: string;
+  workforce: Workforce;
 }
 
 function sessionKey(sessionId: string): string {

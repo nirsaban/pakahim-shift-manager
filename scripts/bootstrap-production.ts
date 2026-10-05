@@ -43,6 +43,17 @@ async function main(): Promise<void> {
 
   const { prisma } = await import('../lib/db/prisma');
 
+  // The wipe below is not tenant-scoped. It was written when the פקחים tenant
+  // was the only one; with the drivers tenant alongside it, running it would
+  // destroy the drivers' data too. Refuse rather than guess.
+  const otherTenants = await prisma.tenant.findMany({ where: { slug: { not: 'default' } } });
+  if (otherTenants.length > 0) {
+    console.error(
+      `Refusing: other tenants exist (${otherTenants.map((t) => t.slug).join(', ')}) and this wipe is not tenant-scoped.`,
+    );
+    process.exit(1);
+  }
+
   console.log('Wiping application tables...');
   // Ordered so foreign keys never block a delete. Reference tables
   // (stations / train lines) go too — they are re-seeded below.

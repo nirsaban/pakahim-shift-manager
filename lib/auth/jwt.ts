@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose';
+import { parseWorkforce, type Workforce } from './workforce';
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET as string);
 
@@ -6,6 +7,12 @@ export interface SessionJwtPayload {
   sessionId: string;
   userId: string;
   role: string;
+  /** Absent on tokens issued before the drivers existed - those are פקחים. */
+  workforce?: Workforce;
+}
+
+export interface VerifiedSessionJwt extends SessionJwtPayload {
+  workforce: Workforce;
 }
 
 export async function signSessionJwt(payload: SessionJwtPayload): Promise<string> {
@@ -16,7 +23,7 @@ export async function signSessionJwt(payload: SessionJwtPayload): Promise<string
     .sign(secret);
 }
 
-export async function verifySessionJwt(token: string): Promise<SessionJwtPayload | null> {
+export async function verifySessionJwt(token: string): Promise<VerifiedSessionJwt | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
     if (
@@ -26,7 +33,12 @@ export async function verifySessionJwt(token: string): Promise<SessionJwtPayload
     ) {
       return null;
     }
-    return { sessionId: payload.sessionId, userId: payload.userId, role: payload.role };
+    return {
+      sessionId: payload.sessionId,
+      userId: payload.userId,
+      role: payload.role,
+      workforce: parseWorkforce(payload.workforce),
+    };
   } catch {
     return null;
   }

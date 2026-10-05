@@ -29,6 +29,10 @@ const CROSS_TEAM_DECIDER_ROLES = new Set(['SHIBUTZ', 'ADMIN', 'SUPER_ADMIN']);
 async function canDecideForTeam(actingUserId: string, teamId: string): Promise<boolean> {
   const actor = await prisma.user.findUnique({ where: { id: actingUserId } });
   if (!actor) return false;
+  // Cross-team authority stops at the tenant: a scheduler for one workforce
+  // (פקחים / locomotive drivers) has no say over the other's teams.
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { tenantId: true } });
+  if (!team || team.tenantId !== actor.tenantId) return false;
   if (CROSS_TEAM_DECIDER_ROLES.has(actor.role)) return true;
   if (actor.role !== 'TEAM_LEAD') return false;
   const led = await prisma.team.findFirst({ where: { id: teamId, teamLeadId: actingUserId } });
@@ -168,7 +172,9 @@ export async function decideCoverageRequest(
   if (!finalReplacementId) return fail(400, 'replacement_required');
 
   const replacement = await prisma.user.findUnique({ where: { id: finalReplacementId } });
-  if (!replacement || replacement.role !== 'PAKAHIM') return fail(400, 'invalid_replacement');
+  if (!replacement || replacement.role !== 'PAKAHIM' || replacement.tenantId !== request.shift.tenantId) {
+    return fail(400, 'invalid_replacement');
+  }
   if (replacement.id === request.shift.workerId) return fail(400, 'cannot_replace_self');
   if (await hasOverlap(finalReplacementId, request.shift.startTime, request.shift.endTime, request.shift.id)) {
     return fail(409, 'replacement_has_overlapping_shift');
@@ -245,7 +251,9 @@ export async function assignReplacement(
 
   if (replacementId) {
     const replacement = await prisma.user.findUnique({ where: { id: replacementId } });
-    if (!replacement || replacement.role !== 'PAKAHIM') return fail(400, 'invalid_replacement');
+    if (!replacement || replacement.role !== 'PAKAHIM' || replacement.tenantId !== shift.tenantId) {
+      return fail(400, 'invalid_replacement');
+    }
     if (replacement.id === shift.workerId) return fail(400, 'cannot_replace_self');
     if (await hasOverlap(replacementId, shift.startTime, shift.endTime, shift.id)) {
       return fail(409, 'replacement_has_overlapping_shift');
