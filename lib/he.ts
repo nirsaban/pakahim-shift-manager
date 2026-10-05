@@ -291,6 +291,33 @@ export const he = {
     emailTaken: 'כתובת הדוא"ל הזו כבר בשימוש - פנה למנהל המערכת',
   },
 
+  // Locomotive drivers (נהגי קטר) - a separate workforce, see docs/modules/drivers.md
+  drivers: {
+    workforce: {
+      pakahim: 'פקח (מנהל נסיעה)',
+      drivers: 'נהג קטר',
+    },
+    phoneSubtitle: 'הכנס את מספר הטלפון שלך כדי להתחבר',
+    firstLoginLink: 'כניסה ראשונה? התחבר עם מספר עובד',
+    firstLoginSubtitle: 'כניסה ראשונה - הכנס את מספר העובד שלך',
+    detailsSubtitle: (name: string) => `שלום ${name}, הזן דוא"ל וטלפון כדי לקבל קוד אימות`,
+    backToPhone: 'כבר נרשמתי - כניסה עם טלפון',
+    workerNumberNotFound: 'מספר העובד לא נמצא ברשימת הנהגים - פנה לאחראי הסידור',
+    alreadyRegistered: 'כבר נרשמת - התחבר עם מספר הטלפון',
+    phoneNotFound: 'מספר הטלפון לא נמצא ברשימת הנהגים - פנה לאחראי הסידור',
+    phoneMismatch: 'מספר הטלפון לא תואם למספר הרשום אצלנו - פנה לאחראי הסידור',
+    phoneShared: 'מספר הטלפון רשום אצל יותר מנהג אחד - פנה לאחראי הסידור',
+    firstLoginRequired: 'זו הכניסה הראשונה שלך - התחבר עם מספר העובד',
+    otpSentBoth: 'קוד נשלח אליך בוואטסאפ ובדוא"ל',
+    otpRecentlySent: 'קוד נשלח אליך לפני רגע - בדוק בוואטסאפ ובדוא"ל',
+    otpNotDelivered: 'לא הצלחנו לשלוח את הקוד כרגע - חזור ונסה שוב בעוד רגע',
+    home: {
+      greeting: 'שלום',
+      comingSoon: 'הסידור היומי שלך יופיע כאן בקרוב',
+      rosterAdminNote: 'יש לך הרשאה להעלות את סידור העבודה של הנהגים',
+    },
+  },
+
   // Success
   success: {
     saved: 'נשמר בהצלחה',

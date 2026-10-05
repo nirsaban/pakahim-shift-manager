@@ -4,8 +4,9 @@ A second workforce on the same app, added 2026-10-05 after the פקחים versio
 Same idea (log in, see today's shift), different people and different source files.
 The rule throughout is **don't mix**: the פקחים app must behave exactly as before.
 
-Status: phase 0 (tenant safety) and phase 1 (data model, contacts import) are done.
-Login (phase 2), roster PDF upload (phase 3) and the driver screen (phase 4) are next.
+Status: phases 0–2 are done: tenant safety, data model and contacts import, and login.
+Roster PDF upload (phase 3) and the driver screen (phase 4) are next. `/drivers` is a
+placeholder that greets the driver.
 
 ## Scope (from the user, 2026-10-05)
 
@@ -88,3 +89,30 @@ npx tsx scripts/import-driver-contacts.ts fixtures/drivers/contacts.pdf --roster
 - The first run creates the tenant and team `דרום`, with the roster admin as team lead.
 - Full names go in `firstName`, as the פקחים import does. A Hebrew name has no reliable
   split point.
+
+## Login
+
+`/login` opens with a פקח / נהג קטר picker. The device remembers the last choice in
+localStorage, and the פקחים form behind it is unchanged (`PakahimLogin`). The driver
+form is `DriverLogin`, backed by four public routes under `/api/drivers/auth/`:
+
+| Route | Step |
+| --- | --- |
+| `worker-number` | First login: is this a driver who has not logged in yet? Sends nothing. |
+| `register` | First login: email + phone. The phone must match the contact list (`isSamePhone`), then a code is sent. |
+| `phone` | Later logins: phone only, then a code is sent. |
+| `verify` | Checks the code. `{workerNumber, otp}` saves the email; `{phone, otp}` logs in. Either way it opens a `drivers` session. |
+
+- **Code delivery:** `deliverOtp({ allChannels: true })` sends to WhatsApp **and**
+  email. פקחים keep "email only if WhatsApp failed".
+- **The phone is the identity check:**
+  - A worker number is printed on a roster everyone gets, so it proves nothing on its own.
+  - A driver whose phone changed is sent to the roster admin to have it corrected.
+- **First login does not touch the account until the code verifies:**
+  - The submitted email waits in Redis until then.
+  - The claim is guarded on `email: null`, so two attempts racing for one driver cannot both win.
+- **Phone shared by two drivers:** phone login is refused rather than guessed.
+- **OTP keys:**
+  - first login: `drv-reg:{tenantId}:{workerNumber}`;
+  - later logins: `drv:{userId}`.
+  - Neither can collide with a פקחים code.

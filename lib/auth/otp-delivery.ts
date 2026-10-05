@@ -22,6 +22,12 @@ interface DeliverOtpInput {
   /** Account email; may be absent for a registration keyed only by phone. */
   email?: string | null;
   phone?: string | null;
+  /**
+   * Send on every channel rather than stopping at the first that works. The
+   * drivers asked for the code on WhatsApp and email both; the פקחים flow
+   * leaves this off and keeps "email only if WhatsApp failed".
+   */
+  allChannels?: boolean;
 }
 
 function whatsappMessage(code: string): string {
@@ -45,7 +51,7 @@ export async function deliverOtp(input: DeliverOtpInput): Promise<OtpChannel[]> 
   // both does not receive the same code twice. Delivery may be redirected via
   // OTP_REDIRECT_MAP; the code is still issued and verified against the
   // account's own identity, so that only changes which inbox it lands in.
-  if (delivered.length === 0 && input.email) {
+  if ((input.allChannels || delivered.length === 0) && input.email) {
     const sent = await sendOtpEmail(resolveOtpRecipients(input.email), input.code)
       .then(() => true)
       .catch((err) => {

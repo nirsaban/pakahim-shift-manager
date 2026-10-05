@@ -11,6 +11,11 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/register',
   '/api/auth/otp/verify',
   '/api/auth/logout',
+  // Locomotive drivers' login - the counterpart of the four above.
+  '/api/drivers/auth/worker-number',
+  '/api/drivers/auth/register',
+  '/api/drivers/auth/phone',
+  '/api/drivers/auth/verify',
   '/discovery.html',
   '/api/discovery',
   // Install instructions must be readable before logging in - a worker being
