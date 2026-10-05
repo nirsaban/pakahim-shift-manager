@@ -4,9 +4,8 @@ A second workforce on the same app, added 2026-10-05 after the פקחים versio
 Same idea (log in, see today's shift), different people and different source files.
 The rule throughout is **don't mix**: the פקחים app must behave exactly as before.
 
-Status: phases 0–3 are done: tenant safety, data model and contacts import, login, and
-roster PDF upload. The driver screen (phase 4) is next. `/drivers` greets the driver,
-and for the roster admin it links to the upload.
+Status: phases 0–4 are done: tenant safety, data model and contacts import, login,
+roster PDF upload, and the driver screen.
 
 ## Scope (from the user, 2026-10-05)
 
@@ -188,3 +187,27 @@ and times are left out.
 - **Rows with no worker number** are listed and not published.
 - **Storage:** times go on `Shift`, the rest on `DriverDuty`.
 - **History:** every publish leaves a `ShiftFile` in the drivers tenant.
+
+## Driver screen (`/drivers`)
+
+**My shift** (`MyShifts`) shows the next shift that has not ended:
+- day ("היום" / "מחר" / the date) and times;
+- an "on shift now" badge while it runs;
+- origin station and Mirs;
+- the train numbers as chips, the task text and the row number;
+- the trainee or observer, with their worker number and Mirs.
+
+Later shifts follow, one line each.
+
+**Day roster** (`DriverDirectory`):
+- **Which day:** one published roster day, chosen by `pickRosterDay`: today's, else the
+  next published, else the latest.
+- **No search:** the list shows who is on that day, by start time, each with a
+  `tel:` link.
+- **Search** covers every driver (name, worker number prefix, city), on shift or not.
+  This is the lookup drivers used to do by hand in the emailed file.
+
+**Times** are formatted on the server in Israel time and handed to the client as
+strings, so a phone's own zone never comes into it. `relativeDayLabel` and
+`pickRosterDay` are tested at 00:30 Israel time, when UTC and New York are still on the
+previous day.
