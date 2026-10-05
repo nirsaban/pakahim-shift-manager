@@ -20,3 +20,19 @@ export async function getDefaultTenantId(): Promise<string> {
   cachedTenantId = tenant.id;
   return cachedTenantId;
 }
+
+/** Slug of the locomotive drivers' tenant (נהגי קטר). */
+export const DRIVERS_TENANT_SLUG = 'drivers';
+
+let cachedDriversTenantId: string | null = null;
+
+/**
+ * The drivers' tenant. Created by scripts/import-driver-contacts.ts, so this
+ * throws until the contacts have been imported once.
+ */
+export async function getDriversTenantId(): Promise<string> {
+  if (cachedDriversTenantId) return cachedDriversTenantId;
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug: DRIVERS_TENANT_SLUG } });
+  cachedDriversTenantId = tenant.id;
+  return cachedDriversTenantId;
+}

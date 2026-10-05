@@ -56,6 +56,10 @@ Real answers gathered directly from the client (an Israel Railways shift coordin
 3. **Terminology** — ~~resolved 2026-08-12~~: every identifier (`UserRole.TAKAHIM` → `PAKAHIM`, `TakahimDashboard` → `PakahimDashboard`, package name, repo name, GHCR image, VPS deploy path, container names, domain) renamed "Takahim" → "Pakahim," the client-chosen English identifier — **פקח** remains the Hebrew term used throughout the UI copy in `lib/he.ts`, unaffected by this rename either way.
 4. **Auto-sync of the daily Excel** — client wants zero-click ingestion the moment scheduling emails the file; today it requires a manual admin upload. Needs a decision on mechanism (inbox polling vs. watched folder vs. keeping it manual for now).
 
+## Locomotive drivers (נהגי קטר) — second workforce, added 2026-10-05
+
+A separate tenant (slug `drivers`) on the same app. South only, roster arrives as PDF, and the uploader is a driver with `isRosterAdmin`. Sessions carry a `workforce`, and `proxy.ts` keeps each workforce on its own routes (`/drivers/**` vs everything else). **Never resolve a tenant with `findFirst()`** — use `getDefaultTenantId()` (פקחים) or `getDriversTenantId()`. See `docs/modules/drivers.md`.
+
 ## Stack
 
 - **Frontend:** Next.js 15 (App Router, TypeScript, PWA-enabled)

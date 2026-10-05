@@ -38,9 +38,11 @@ export async function createTeam(tenantId: string, input: CreateTeamInput): Prom
   return ok({ id: team.id });
 }
 
-export async function updateTeam(teamId: string, input: UpdateTeamInput): Promise<AdminResult<true>> {
+export async function updateTeam(tenantId: string, teamId: string, input: UpdateTeamInput): Promise<AdminResult<true>> {
   const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (!team) return fail(404, 'team_not_found');
+  // Another tenant's team reads as missing, not forbidden: an admin has no
+  // business learning which ids exist outside their own workforce.
+  if (!team || team.tenantId !== tenantId) return fail(404, 'team_not_found');
 
   if (input.teamLeadId) {
     const lead = await prisma.user.findUnique({ where: { id: input.teamLeadId } });
@@ -130,9 +132,9 @@ export async function createWorker(tenantId: string, input: CreateWorkerInput): 
   return ok({ id: user.id });
 }
 
-export async function updateWorker(userId: string, input: UpdateWorkerInput): Promise<AdminResult<true>> {
+export async function updateWorker(tenantId: string, userId: string, input: UpdateWorkerInput): Promise<AdminResult<true>> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return fail(404, 'worker_not_found');
+  if (!user || user.tenantId !== tenantId) return fail(404, 'worker_not_found');
 
   // Guardrail: don't strand a Team whose teamLeadId points at a user who's no longer a
   // TEAM_LEAD - reassign or remove those teams first. See docs/screens/manage-teams-workers.md.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateWorkerSchema } from '@/lib/validation/admin';
 import { updateWorker } from '@/lib/services/admin-service';
+import { getDefaultTenantId } from '@/lib/db/tenant';
 import { he, adminErrorMessage } from '@/lib/he';
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
@@ -14,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const parsed = updateWorkerSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: he.error.required }, { status: 400 });
 
-  const result = await updateWorker(id, parsed.data);
+  const result = await updateWorker(await getDefaultTenantId(), id, parsed.data);
   if (!result.ok) return NextResponse.json({ error: adminErrorMessage(result.error) }, { status: result.status });
   return NextResponse.json({ ok: true });
 }

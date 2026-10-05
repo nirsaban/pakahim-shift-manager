@@ -30,6 +30,10 @@
 /fixtures/rosters/*
 !/fixtures/rosters/sample.xlsx
 
+# real drivers' files - contact list (phones) and daily rosters. Tests that
+# read them skip when they are absent.
+/fixtures/drivers/*
+
 # debug
 npm-debug.log*
 yarn-debug.log*

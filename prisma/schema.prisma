@@ -23,6 +23,8 @@ model Tenant {
   incidents Incident[]
   duties    Duty[]
 
+  driverDuties DriverDuty[]
+
   @@map("tenants")
 }
 
@@ -60,6 +62,12 @@ model User {
   homeStation       Station?          @relation("UserHomeStation", fields: [homeStationId], references: [id], onDelete: SetNull)
   homeStationSource HomeStationSource @default(UNKNOWN)
 
+  /// Locomotive drivers only: may upload the drivers' daily roster PDF. The
+  /// uploader is a regular driver, so this is a permission on top of DRIVER
+  /// rather than a role - and never ADMIN, which every פקחים admin check
+  /// would then let through.
+  isRosterAdmin Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -95,6 +103,7 @@ enum UserRole {
   TEAM_LEAD // Team manager
   PAKAHIM // Worker/operator (פקח)
   MAINTENANCE // מחלקת אחזקה - handles train-equipment fault reports
+  DRIVER // נהג קטר - locomotive driver; lives in the drivers tenant only
 }
 
 model Team {
@@ -145,6 +154,7 @@ model Shift {
   coverageRequests CoverageRequest[]
   reminders        ShiftReminder[]
   duty             Duty? // parsed roster line this shift came from, if any
+  driverDuty       DriverDuty? // drivers' roster line this shift came from, if any
 
   @@index([tenantId])
   @@index([workerId])
@@ -721,4 +731,34 @@ enum ReminderSound {
   BELL
   ALARM
   SILENT
+}
+
+/// One line of the locomotive drivers' daily roster PDF (דוח סידור עבודה
+/// יומי). Kept apart from Duty on purpose: Duty is the פקחים booklet grammar
+/// and feeds the handoff/swap engines, which know nothing about drivers. The
+/// Shift row carries the times; this carries what only the drivers' report has.
+model DriverDuty {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  shiftId String @unique
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  serial        Int // the report's # column
+  mirs          String? // Mirs radio number(s), as printed
+  originStation String? // תחנת מוצא
+  task          String // משימה, as printed: train numbers and stations
+  trainNumbers  String[] // the train numbers pulled out of `task`
+
+  /// A second person on the line - "חונך" (trainee being mentored) or "צופה"
+  /// (observer) - as printed. Not linked to a User: they are often not drivers.
+  companionRole         String?
+  companionName         String?
+  companionWorkerNumber String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("driver_duties")
 }
