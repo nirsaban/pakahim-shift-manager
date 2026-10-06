@@ -16,6 +16,8 @@ export interface DriverShiftView {
   startTime: Date;
   endTime: Date;
   serial: number | null;
+  /** The weekly report's link, "D01", for a line it wrote. */
+  link: string | null;
   originStation: string | null;
   mirs: string | null;
   task: string | null;
@@ -47,6 +49,7 @@ export async function getUpcomingDriverShifts(workerId: string, now: Date, limit
       startTime: s.startTime,
       endTime: s.endTime,
       serial: duty?.serial ?? null,
+      link: duty?.link ?? null,
       originStation: duty?.originStation ?? null,
       mirs: duty?.mirs ?? null,
       task: duty?.task ?? null,

@@ -72,6 +72,7 @@ export function MyShifts({
             <p className="text-xs font-medium text-muted">
               {t.task}
               {next.serial !== null && ` · ${t.row(next.serial)}`}
+              {next.link && ` · ${t.link(next.link)}`}
             </p>
             <p className="text-sm leading-relaxed text-foreground">{next.task}</p>
           </div>

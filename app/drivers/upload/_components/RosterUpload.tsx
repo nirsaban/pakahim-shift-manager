@@ -5,6 +5,7 @@ import { CircleCheck, FileText, Info, TriangleAlert, UploadCloud } from 'lucide-
 import { he } from '@/lib/he';
 import { cn } from '@/lib/utils/cn';
 import type { DriverRosterSummary } from '@/lib/services/driver-roster-service';
+import type { WeeklyRosterSummary } from '@/lib/services/driver-weekly-service';
 import { Card } from '../../../_components/ui/Card';
 import { Button } from '../../../_components/ui/Button';
 
@@ -15,7 +16,7 @@ import { Button } from '../../../_components/ui/Button';
 export function RosterUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [summary, setSummary] = useState<DriverRosterSummary | null>(null);
+  const [summary, setSummary] = useState<DriverRosterSummary | WeeklyRosterSummary | null>(null);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<'checking' | 'publishing' | null>(null);
@@ -98,7 +99,7 @@ export function RosterUpload() {
           {published && summary ? (
             <p className="flex items-center gap-1.5 text-sm font-medium text-success-fg">
               <CircleCheck size={16} className="shrink-0" />
-              {t.published(summary.date)}
+              {t.published(summary.kind === 'weekly' ? summary.range : summary.date)}
             </p>
           ) : summary ? (
             <Button type="button" size="lg" disabled={busy !== null} onClick={() => send(true)} className="w-full">
@@ -113,7 +114,8 @@ export function RosterUpload() {
         </div>
       </Card>
 
-      {summary && <Summary summary={summary} published={published} />}
+      {summary?.kind === 'weekly' && <WeeklySummary summary={summary} />}
+      {summary?.kind === 'daily' && <Summary summary={summary} published={published} />}
     </div>
   );
 }
@@ -202,6 +204,79 @@ function Notice({ tone, children }: { tone: 'info' | 'warning'; children: ReactN
     >
       {tone === 'info' ? <Info size={16} className="mt-0.5 shrink-0" /> : <TriangleAlert size={16} className="mt-0.5 shrink-0" />}
       <div>{children}</div>
+    </div>
+  );
+}
+
+/** The weekly link report's preview: a line per day, and the names it could not be sure of. */
+function WeeklySummary({ summary }: { summary: WeeklyRosterSummary }) {
+  const t = he.drivers.upload;
+  const w = t.weekly;
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <p className="text-xs font-medium text-muted">{w.detected}</p>
+        <h2 className="text-lg font-semibold text-foreground">{w.summaryTitle(summary.range)}</h2>
+        <p className="text-sm text-muted">{w.drivers(summary.matchedCount, summary.driverCount)}</p>
+      </div>
+
+      <Card className="p-0">
+        <ul className="divide-y divide-border">
+          {summary.days.map((day) => (
+            <li key={day.date} className="flex flex-col gap-0.5 px-4 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-medium text-foreground">{day.label}</span>
+                <span className="text-sm text-muted">{w.day(day.shiftCount, day.restCount)}</span>
+              </div>
+              <p className={day.skippedForDaily ? 'text-xs text-warning-fg' : 'text-xs text-muted'}>
+                {day.skippedForDaily
+                  ? w.skippedForDaily
+                  : w.changes(day.newShiftCount, day.updatedShiftCount, day.removedShiftCount)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      {summary.days.some((d) => d.skippedForDaily) && <Notice tone="info">{w.dailyWins}</Notice>}
+
+      {summary.unmatched.length > 0 && (
+        <Notice tone="warning">
+          <p>{w.unmatched}</p>
+          <ul className="mt-1 list-disc ps-5 text-xs">
+            {summary.unmatched.map((u) => (
+              <li key={u.link}>
+                {u.link} · {u.name || w.noName}
+                {u.reason === 'ambiguous' && ` (${w.ambiguous})`}
+              </li>
+            ))}
+          </ul>
+        </Notice>
+      )}
+
+      {summary.nearMatches.length > 0 && (
+        <Notice tone="info">
+          <p>{w.nearMatches}</p>
+          <ul className="mt-1 list-disc ps-5 text-xs">
+            {summary.nearMatches.map((m) => (
+              <li key={m.name}>
+                {m.name} ← {m.matchedName}
+              </li>
+            ))}
+          </ul>
+        </Notice>
+      )}
+
+      {summary.warnings.length > 0 && (
+        <Notice tone="warning">
+          <p>{t.warnings}</p>
+          <ul className="mt-1 list-disc ps-5 text-xs">
+            {summary.warnings.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+        </Notice>
+      )}
     </div>
   );
 }

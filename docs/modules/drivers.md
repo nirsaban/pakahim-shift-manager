@@ -292,3 +292,42 @@ task, trains, trainee, and their handoffs.
 
 **Data:** this works on already-published days, because it reads the stored task text.
 No re-upload is needed. It is an inference from the task text, and the card says so.
+
+## Weekly link report (2026-10-06)
+
+The upload page also takes the **weekly** "דוח לינק יומי ושבועי". It tells the two
+reports apart by the title on the first page (`isWeeklyLinkReport`), so the roster
+admin uploads either file the same way.
+
+**Format (`lib/driver-roster/weekly.ts`):**
+- Landscape. One row per driver, starting at their link: "D01", or a second series
+  printed "ד01".
+- One column per day, from the header's dates.
+- **A cell** is a day off ("מנוחה"), or task lines followed by the hours in
+  parentheses, "(04:20 11:05)", which may wrap or be glued: "(22:2504:35)".
+- **Column borders:**
+  - The headings are centred unevenly, so they only say roughly where a column starts.
+  - Cell text is set flush against each column's left border, so each border is the
+    most common left edge of body text just left of its heading.
+  - An item belongs to the column its left edge is in.
+- **Reading the cells:** lines read left to right in time order, as in the daily report.
+  - A Hebrew run like "251 בנימינה" is one item whose words are in logical order, so its
+    words are reversed. That needs `dir`, which `readPdfTextItems` now passes on.
+- **Stored form:** each cell's task is stored in the daily report's form, so display,
+  train numbers and handoffs work unchanged. The first station named becomes the origin.
+
+**Drivers are matched by name (`name-match.ts`)**, since the report has no worker numbers:
+1. exact match;
+2. the same words in another order;
+3. at most two letters apart, and only when exactly one driver is that close.
+
+On the 03–09/10 file: 116 exact, 13 near (all real spelling variants), 5 unmatched, and
+none ambiguous. Unmatched names are listed, not created. Without a worker number a new
+account would clash with the one the daily report creates.
+
+**Daily wins** (`DriverDuty.source`):
+- A day already published from the daily report is skipped by a weekly upload.
+- A daily upload takes over a weekly day: it matches by worker, updates in place, sets
+  `source = DAILY`, and drops weekly-only shifts.
+- A weekly re-upload keeps each driver's shift id, as the daily does.
+- Pushes name each driver's new, changed or removed days.

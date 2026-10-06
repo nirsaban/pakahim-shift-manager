@@ -13,6 +13,8 @@ export interface PdfTextItem {
   y: number;
   width: number;
   height: number;
+  /** Writing direction pdf.js resolved for the run. A Hebrew run's words are in logical order, right to left. */
+  dir?: string;
 }
 
 /** Text items of every page, page by page, empty runs dropped. */
@@ -31,6 +33,7 @@ export async function readPdfTextItems(data: Uint8Array): Promise<PdfTextItem[][
         y: item.transform[5],
         width: item.width,
         height: item.height,
+        dir: item.dir,
       });
     }
     pages.push(items);

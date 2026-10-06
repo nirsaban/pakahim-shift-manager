@@ -733,6 +733,11 @@ enum ReminderSound {
   SILENT
 }
 
+enum DriverDutySource {
+  DAILY // דוח סידור עבודה יומי
+  WEEKLY // דוח לינק יומי ושבועי
+}
+
 /// One line of the locomotive drivers' daily roster PDF (דוח סידור עבודה
 /// יומי). Kept apart from Duty on purpose: Duty is the פקחים booklet grammar
 /// and feeds the handoff/swap engines, which know nothing about drivers. The
@@ -745,7 +750,11 @@ model DriverDuty {
   shiftId String @unique
   shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
-  serial        Int // the report's # column
+  serial        Int? // the daily report's # column; null on a weekly line
+  link          String? // the weekly report's link, "D01" / "ד01"
+  /// Which report wrote this line. A day published from the daily report is
+  /// not overwritten by a weekly one: the daily is newer and gets corrected.
+  source        DriverDutySource @default(DAILY)
   mirs          String? // Mirs radio number(s), as printed
   originStation String? // תחנת מוצא
   task          String // משימה, as printed: train numbers and stations

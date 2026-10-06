@@ -19,7 +19,7 @@ const PASSENGER = 'בת';
 const TRAIN = /^\(?(\d{1,5})\)?$/;
 
 /** Words in a task that name an activity, not a station a train can change hands at. */
-const NOT_A_STATION = new Set(['מונית', 'בדק', 'עיתוק', 'כונן', 'כוננות', 'כיבוי', 'רציף', '??', 'מזרח', 'צפון', 'אמצע']);
+export const NOT_A_STATION = new Set(['מונית', 'בדק', 'עיתוק', 'כונן', 'כוננות', 'כיבוי', 'רציף', '??', 'מזרח', 'צפון', 'אמצע']);
 
 /** A stored task as steps in time order. */
 export function taskSteps(task: string): Step[] {

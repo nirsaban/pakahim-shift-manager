@@ -1,6 +1,8 @@
 import { prisma } from '../db/prisma';
 import { he } from '../he';
-import { readPdfTextItems } from '../driver-roster/pdf';
+import { readPdfTextItems, type PdfTextItem } from '../driver-roster/pdf';
+import { isWeeklyLinkReport } from '../driver-roster/weekly';
+import { importWeeklyRoster, type WeeklyRosterSummary } from './driver-weekly-service';
 import { parseDriverRoster, type DriverRosterRow } from '../driver-roster/roster';
 import { planRosterPublish, shiftWindow, type RosterDate } from '../driver-roster/roster-plan';
 import { formatIsraelDate, israelMidnight } from '../time/zone';
@@ -17,6 +19,7 @@ import { DRIVERS_SOUTH_TEAM } from './driver-contacts-service';
  */
 
 export interface DriverRosterSummary {
+  kind: 'daily';
   date: string;
   rowCount: number;
   newShiftCount: number;
@@ -43,8 +46,29 @@ export interface ImportDriverRosterInput {
   tenantId: string;
   uploadedBy: string;
   filename: string;
-  data: Uint8Array;
+  pages: Pick<PdfTextItem, 'str' | 'x' | 'y' | 'width' | 'dir'>[][];
   publish: boolean;
+}
+
+export type RosterFileResult =
+  | { ok: true; summary: DriverRosterSummary | WeeklyRosterSummary }
+  | { ok: false; error: string };
+
+/**
+ * Either roster the department sends: the daily "דוח סידור עבודה יומי" or the
+ * weekly "דוח לינק יומי ושבועי", told apart by the title on the first page.
+ */
+export async function importRosterFile(
+  input: Omit<ImportDriverRosterInput, 'pages'> & { data: Uint8Array },
+): Promise<RosterFileResult> {
+  const { data, ...rest } = input;
+  let pages;
+  try {
+    pages = await readPdfTextItems(data);
+  } catch {
+    return { ok: false, error: he.drivers.upload.errors.unreadable };
+  }
+  return isWeeklyLinkReport(pages) ? importWeeklyRoster({ ...rest, pages }) : importDriverRoster({ ...rest, pages });
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -58,14 +82,7 @@ function companionLabel(row: DriverRosterRow): string | null {
 }
 
 export async function importDriverRoster(input: ImportDriverRosterInput): Promise<DriverRosterResult> {
-  let pages;
-  try {
-    pages = await readPdfTextItems(input.data);
-  } catch {
-    return { ok: false, error: he.drivers.upload.errors.unreadable };
-  }
-
-  const parsed = parseDriverRoster(pages);
+  const parsed = parseDriverRoster(input.pages);
   if (!parsed.date) return { ok: false, error: he.drivers.upload.errors.noDate };
   if (parsed.rows.length === 0) return { ok: false, error: he.drivers.upload.errors.noRows };
   const date = parsed.date;
@@ -91,6 +108,7 @@ export async function importDriverRoster(input: ImportDriverRosterInput): Promis
   const plan = planRosterPublish(parsed.rows, driverIdByNumber, existing);
 
   const summary: DriverRosterSummary = {
+    kind: 'daily',
     date: formatDate(date),
     rowCount: parsed.rows.length,
     newShiftCount: plan.shifts.filter((s) => !s.existingShiftId).length,
@@ -142,6 +160,9 @@ export async function importDriverRoster(input: ImportDriverRosterInput): Promis
         const window = shiftWindow(date, row);
         const duty = {
           serial: row.serial,
+          // Taking a day over from the weekly report makes it the daily's.
+          source: 'DAILY' as const,
+          link: null,
           mirs: row.mirs,
           originStation: row.originStation,
           task: row.task,

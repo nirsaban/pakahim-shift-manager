@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findRosterAdmin } from '@/lib/auth/roster-admin';
-import { importDriverRoster } from '@/lib/services/driver-roster-service';
+import { importRosterFile } from '@/lib/services/driver-roster-service';
 import { he } from '@/lib/he';
 
 /**
- * Previews (publish=false) or publishes (publish=true) the drivers' daily
- * roster PDF. Roster admin only.
+ * Previews (publish=false) or publishes (publish=true) a drivers' roster PDF -
+ * the daily report or the weekly link report, recognised from the file.
+ * Roster admin only.
  */
 
 // The real report is ~400KB; anything far beyond that is not one.
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: he.drivers.upload.errors.notPdf }, { status: 400 });
   }
 
-  const result = await importDriverRoster({
+  const result = await importRosterFile({
     tenantId: admin.tenantId,
     uploadedBy: admin.id,
     filename: file.name,
