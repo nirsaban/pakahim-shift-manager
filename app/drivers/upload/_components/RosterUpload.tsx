@@ -4,16 +4,17 @@ import { useState, type ReactNode } from 'react';
 import { CircleCheck, FileText, Info, TriangleAlert, UploadCloud } from 'lucide-react';
 import { he } from '@/lib/he';
 import { cn } from '@/lib/utils/cn';
-import type { DriverRosterSummary } from '@/lib/services/driver-roster-service';
+import type { DriverRosterSummary, RosterKind } from '@/lib/services/driver-roster-service';
 import type { WeeklyRosterSummary } from '@/lib/services/driver-weekly-service';
 import { Card } from '../../../_components/ui/Card';
 import { Button } from '../../../_components/ui/Button';
 
 /**
  * Pick the PDF, check it, then publish. Checking runs the same import with
- * publish=false, so the preview is exactly what publishing will write.
+ * publish=false, so the preview is exactly what publishing will write. `kind`
+ * is the report the admin chose; the server refuses a file of the other kind.
  */
-export function RosterUpload() {
+export function RosterUpload({ kind }: { kind: RosterKind }) {
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [summary, setSummary] = useState<DriverRosterSummary | WeeklyRosterSummary | null>(null);
@@ -36,6 +37,7 @@ export function RosterUpload() {
       const form = new FormData();
       form.append('file', file);
       form.append('publish', String(publish));
+      form.append('kind', kind);
       const res = await fetch('/api/drivers/roster', { method: 'POST', body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

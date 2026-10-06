@@ -315,6 +315,8 @@ export const he = {
     home: {
       greeting: 'שלום',
       uploadRoster: 'העלאת סידור עבודה',
+      uploadDaily: 'העלאת סידור יומי',
+      uploadWeekly: 'העלאת סידור שבועי',
       myShift: 'המשמרת שלי',
       nextShifts: 'משמרות הבאות',
       noShift: 'אין לך משמרת בסידור שפורסם',
@@ -394,7 +396,16 @@ export const he = {
     },
     upload: {
       title: 'העלאת סידור עבודה',
-      subtitle: 'קובץ PDF של "דוח סידור עבודה יומי" או של "דוח לינק יומי ושבועי" - המערכת מזהה לבד. נקרא רק אזור דרום.',
+      subtitle: 'בחר את סוג הסידור ואת קובץ ה-PDF. נקרא רק אזור דרום.',
+      // The two reports the department sends. The daily always wins a day both cover.
+      kind: {
+        daily: 'סידור יומי',
+        weekly: 'סידור שבועי',
+      },
+      kindHint: {
+        daily: '"דוח סידור עבודה יומי" - הסידור המעודכן ביותר. גובר תמיד על הסידור השבועי לאותו יום.',
+        weekly: '"דוח לינק יומי ושבועי" - שבוע שלם מראש. ימים שכבר פורסם להם סידור יומי לא ישתנו.',
+      },
       chooseFile: 'בחר קובץ PDF',
       dropHint: 'PDF · גרור לכאן או לחץ לבחירה',
       replaceFile: 'קובץ אחר',
@@ -437,6 +448,11 @@ export const he = {
         noDate: 'לא נמצא תאריך בקובץ - האם זה דוח סידור עבודה יומי?',
         noRows: 'לא נמצאו שורות של אזור דרום בקובץ',
         noTeam: 'צוות הנהגים לא הוגדר - יש לייבא תחילה את אלפון הנהגים',
+        // The file is the other report from the one chosen.
+        wrongKind: {
+          daily: 'זה קובץ של סידור יומי - בחר "סידור יומי" והעלה שוב',
+          weekly: 'זה קובץ של סידור שבועי (דוח לינק) - בחר "סידור שבועי" והעלה שוב',
+        },
       },
       // Shown to the roster admin under the preview - things about the file itself.
       warning: {

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { History, ShieldCheck, UploadCloud, Users, UsersRound } from 'lucide-react';
+import { CalendarDays, CalendarRange, History, ShieldCheck, Users, UsersRound } from 'lucide-react';
 import { he } from '@/lib/he';
 import { Card, CardHeader } from '../../_components/ui/Card';
 import { Button } from '../../_components/ui/Button';
@@ -11,10 +11,17 @@ export function DriverAdminNav() {
     <Card>
       <CardHeader title={t.title} icon={<ShieldCheck size={16} />} />
       <div className="grid grid-cols-2 gap-2">
-        <Link href="/drivers/upload">
+        {/* Both are allowed; the daily always wins a day the weekly also covers. */}
+        <Link href="/drivers/upload?kind=daily">
           <Button size="lg" className="w-full">
-            <UploadCloud size={17} />
-            {he.drivers.home.uploadRoster}
+            <CalendarDays size={17} />
+            {he.drivers.home.uploadDaily}
+          </Button>
+        </Link>
+        <Link href="/drivers/upload?kind=weekly">
+          <Button size="lg" className="w-full">
+            <CalendarRange size={17} />
+            {he.drivers.home.uploadWeekly}
           </Button>
         </Link>
         <Link href="/drivers/team">
@@ -29,7 +36,7 @@ export function DriverAdminNav() {
             {t.manage}
           </Button>
         </Link>
-        <Link href="/drivers/uploads">
+        <Link href="/drivers/uploads" className="col-span-2">
           <Button size="lg" variant="secondary" className="w-full">
             <History size={17} />
             {t.uploads}

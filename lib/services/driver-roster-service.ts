@@ -54,21 +54,34 @@ export type RosterFileResult =
   | { ok: true; summary: DriverRosterSummary | WeeklyRosterSummary }
   | { ok: false; error: string };
 
+/** The two rosters the department sends. */
+export type RosterKind = 'daily' | 'weekly';
+
+export function parseRosterKind(value: unknown): RosterKind | null {
+  return value === 'daily' || value === 'weekly' ? value : null;
+}
+
 /**
  * Either roster the department sends: the daily "דוח סידור עבודה יומי" or the
  * weekly "דוח לינק יומי ושבועי", told apart by the title on the first page.
+ *
+ * The admin also says which one he is uploading. When the file is the other
+ * kind it is refused rather than imported anyway: the daily overrides weekly
+ * days, so the two must not be confused.
  */
 export async function importRosterFile(
-  input: Omit<ImportDriverRosterInput, 'pages'> & { data: Uint8Array },
+  input: Omit<ImportDriverRosterInput, 'pages'> & { data: Uint8Array; expected: RosterKind | null },
 ): Promise<RosterFileResult> {
-  const { data, ...rest } = input;
+  const { data, expected, ...rest } = input;
   let pages;
   try {
     pages = await readPdfTextItems(data);
   } catch {
     return { ok: false, error: he.drivers.upload.errors.unreadable };
   }
-  return isWeeklyLinkReport(pages) ? importWeeklyRoster({ ...rest, pages }) : importDriverRoster({ ...rest, pages });
+  const detected: RosterKind = isWeeklyLinkReport(pages) ? 'weekly' : 'daily';
+  if (expected && expected !== detected) return { ok: false, error: he.drivers.upload.errors.wrongKind[detected] };
+  return detected === 'weekly' ? importWeeklyRoster({ ...rest, pages }) : importDriverRoster({ ...rest, pages });
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');

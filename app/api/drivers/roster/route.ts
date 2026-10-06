@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findRosterAdmin } from '@/lib/auth/roster-admin';
-import { importRosterFile } from '@/lib/services/driver-roster-service';
+import { importRosterFile, parseRosterKind } from '@/lib/services/driver-roster-service';
 import { he } from '@/lib/he';
 
 /**
@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     filename: file.name,
     data,
     publish: form?.get('publish') === 'true',
+    // Which report the admin chose to upload; a file of the other kind is refused.
+    expected: parseRosterKind(form?.get('kind')),
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
   return NextResponse.json(result.summary);

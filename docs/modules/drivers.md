@@ -295,9 +295,14 @@ No re-upload is needed. It is an inference from the task text, and the card says
 
 ## Weekly link report (2026-10-06)
 
-The upload page also takes the **weekly** "דוח לינק יומי ושבועי". It tells the two
-reports apart by the title on the first page (`isWeeklyLinkReport`), so the roster
-admin uploads either file the same way.
+The upload page also takes the **weekly** "דוח לינק יומי ושבועי".
+
+**Two buttons:** the roster admin chooses explicitly, with "העלאת סידור יומי" or
+"העלאת סידור שבועי" (`/drivers/upload?kind=daily|weekly`).
+- Both may be uploaded, and the daily always wins a day both cover.
+- The server tells the reports apart by the title on the first page
+  (`isWeeklyLinkReport`), and refuses a file that is the other kind from the button
+  chosen. Since the daily overrides weekly days, the two must not be confused.
 
 **Format (`lib/driver-roster/weekly.ts`):**
 - Landscape. One row per driver, starting at their link: "D01", or a second series
