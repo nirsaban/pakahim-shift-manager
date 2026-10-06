@@ -10,8 +10,8 @@ import { relativeDayLabel } from '@/lib/driver-roster/display';
 import { parseWorkloadRange, workloadWindowFor } from '@/lib/roster/workload-range';
 import {
   getDriverDirectory,
-  getTrainPartners,
   getUpcomingDriverShifts,
+  loadRosterDay,
 } from '@/lib/services/driver-home-service';
 import { getWorkerSchedule } from '@/lib/services/worker-shift-service';
 import { getWorkerWorkload } from '@/lib/services/workload-service';
@@ -28,7 +28,7 @@ import { ReportIncidentForm } from '../dashboard/_components/ReportIncidentForm'
 import { DriverHeader } from './_components/DriverHeader';
 import { DriverAdminNav } from './_components/DriverAdminNav';
 import { MyShifts } from './_components/MyShifts';
-import { TrainPartners } from './_components/TrainPartners';
+import { toHandoffView } from './_components/HandoffList';
 import { DriverDirectory, type DirectoryRow } from './_components/DriverDirectory';
 
 // Same spans as the פקחים dashboard's schedule card.
@@ -37,11 +37,11 @@ const SCHEDULE_DAYS_BACK = 7;
 
 /**
  * Home for a locomotive driver - only a driver session reaches it (proxy.ts).
- * Everything a פקח's dashboard has that applies to drivers: the next shift
- * and who covers it, shifts they cover, the drivers on their trains, their
- * schedule and workload, and incident reports to their team lead; then the
- * day's roster with everyone's contact details. The roster admin also gets
- * his tools here.
+ * Everything a פקח's dashboard has that applies to drivers: the next shift,
+ * who covers it, and who they take a train over from or hand one to; shifts
+ * they cover; their schedule and workload; incident reports to their team
+ * lead. Then the day's roster with everyone's contact details, where tapping
+ * a driver opens their work that day. The roster admin also gets his tools.
  */
 export default async function DriversHomePage({
   searchParams,
@@ -73,7 +73,18 @@ export default async function DriversHomePage({
     user.teamId ? getTeamLeadContact(user.teamId) : Promise.resolve(null),
   ]);
   const next = shifts[0];
-  const trains = next ? await getTrainPartners(next, user.tenantId) : [];
+  // The next shift's handoffs come from its own roster day - the same one the
+  // list shows, unless the next shift falls on another day.
+  const nextDay =
+    next && directory.day && next.date.getTime() === directory.day.getTime()
+      ? directory.byWorker
+      : next
+        ? await loadRosterDay(user.tenantId, next.date)
+        : null;
+  const myDay = next ? [...(nextDay?.values() ?? [])].find((d) => d.shiftId === next.id) : undefined;
+  const myHandoffs = myDay
+    ? { takesOverFrom: myDay.takesOverFrom.map(toHandoffView), handsOverTo: myDay.handsOverTo.map(toHandoffView) }
+    : undefined;
 
   // Times are formatted here, in Israel time, so the client never reads them
   // in the phone's own zone.
@@ -84,7 +95,16 @@ export default async function DriversHomePage({
     phone: e.phone,
     city: e.city,
     shift: e.shift
-      ? { span: `${formatIsraelTime(e.shift.startTime)}–${formatIsraelTime(e.shift.endTime)}`, origin: e.shift.originStation }
+      ? {
+          span: `${formatIsraelTime(e.shift.startTime)}–${formatIsraelTime(e.shift.endTime)}`,
+          origin: e.shift.originStation,
+          mirs: e.shift.mirs,
+          task: e.shift.task,
+          trainNumbers: e.shift.trainNumbers,
+          companion: e.shift.companion,
+          takesOverFrom: e.shift.takesOverFrom.map(toHandoffView),
+          handsOverTo: e.shift.handsOverTo.map(toHandoffView),
+        }
       : null,
   }));
 
@@ -104,7 +124,7 @@ export default async function DriversHomePage({
 
         {isDriversAdmin(user) && <DriverAdminNav />}
 
-        <MyShifts shifts={shifts} now={now} />
+        <MyShifts shifts={shifts} now={now} handoffs={myHandoffs} />
 
         {coveringFor.length > 0 && (
           <Card>
@@ -123,8 +143,6 @@ export default async function DriversHomePage({
             </ul>
           </Card>
         )}
-
-        <TrainPartners trains={trains} />
 
         <MySchedule entries={schedule} days={SCHEDULE_DAYS} />
 

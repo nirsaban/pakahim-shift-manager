@@ -322,6 +322,7 @@ export const he = {
       origin: 'תחנת מוצא',
       mirs: 'מירס',
       trains: 'רכבות',
+      asPassenger: 'נוסע',
       task: 'משימה',
       row: (serial: number) => `שורה ${serial}`,
       companionMirs: (mirs: string) => `מירס ${mirs}`,
@@ -375,10 +376,20 @@ export const he = {
         invalid_worker_number: 'מספר עובד לא תקין',
       },
     },
-    trains: {
-      title: 'נהגים ברכבות שלי',
-      subtitle: 'נהגים נוספים שהרכבת מופיעה גם במשימה שלהם היום',
-      train: (n: string) => `רכבת ${n}`,
+    // Who hands a train to whom, worked out from the day's tasks (lib/driver-roster/handoffs.ts).
+    handoffs: {
+      title: 'מי מחליף את מי',
+      note: 'מחושב ממספרי הרכבות במשימות של היום - יש לוודא מול הסידור',
+      takesOverFrom: 'אני מחליף את',
+      handsOverTo: 'מחליף אותי',
+      theyTakeOverFrom: 'מחליף את',
+      theyHandOverTo: 'מוחלף על ידי',
+      none: 'לא נמצאה החלפה ברכבות של המשמרת',
+      where: (train: string, station: string | null) => (station ? `רכבת ${train} · בתחנת ${station}` : `רכבת ${train}`),
+    },
+    day: {
+      tapHint: 'הקש על נהג כדי לראות את העבודה שלו היום',
+      showWork: (name: string) => `העבודה של ${name}`,
     },
     upload: {
       title: 'העלאת סידור עבודה',

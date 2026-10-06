@@ -223,7 +223,7 @@ admin (איתן) as a working driver who also has every admin power. This mirror
 | --- | --- |
 | Shift card: current/next, sick/holiday badge, replacement with WhatsApp | `MyShifts` (+ origin, Mirs, trains, trainee) |
 | "Covering for" | same card, `getShiftsCoveringFor` |
-| Handoffs / train companions | `TrainPartners`: other drivers whose task that day names the same train |
+| Handoffs: who I take over from, who takes over from me, and where | `lib/driver-roster/handoffs.ts`, on the shift card and in each driver's row of the day list |
 | My schedule (7 back, 14 ahead) | `MySchedule`, reused |
 | Workload week/month/year | `WorkloadCard`, reused (`basePath="/drivers"`) |
 | Incident report | `ReportIncidentForm`, reused; it reaches the team lead (the roster admin) |
@@ -258,3 +258,37 @@ per duty), which the drivers' report does not have in that form.
 - the station-level handoff detail.
 
 Timezone repair and WhatsApp pairing are global admin tools and stay with the פקחים admin.
+
+## Handoffs and the day list (2026-10-06)
+
+The shift card shows **who I take over from** ("אני מחליף את") and **who takes over
+from me** ("מחליף אותי"), each with the train, the station and the other driver's
+times and phone. Tapping a driver in the day list opens their work: origin, Mirs,
+task, trains, trainee, and their handoffs.
+
+**Reading a task in time order (`taskSteps`):**
+- The stored task is right-to-left, as it reads on the page. The report prints each
+  line left to right in time order: "בדק - 2504 - 503 - לוד - 23" is a check, empty
+  move 2504, train 503 into לוד, then train 23.
+- So each line is reversed, and the lines are kept in order.
+- `N בת` means riding train N as a passenger. It is shown apart from the driven trains
+  and never counts as a handoff.
+
+**Pairing (`dayHandoffs`):**
+- For a train two drivers both drive, the one for whom it is the first train of the day
+  takes it over.
+- Otherwise the earlier starter hands it over.
+
+**Station, in order of preference:**
+1. the first station after the train in the earlier driver's task (activity words such
+   as מונית and בדק are skipped);
+2. else the last one before it in the later driver's task;
+3. else the later driver's origin.
+
+**On the 01.10 report:**
+- 101 handoffs, all with a station, covering 113 of 191 shifts.
+- The cases checked by hand are in the tests: #8 → #16 on 503 at לוד, and the roster
+  admin taking 640 over at הגנה.
+
+**Data:** this works on already-published days, because it reads the stored task text.
+No re-upload is needed. It is an inference from the task text, and the card says so.

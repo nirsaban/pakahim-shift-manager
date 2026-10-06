@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma';
 import { pickRosterDay } from '../driver-roster/display';
+import { dayHandoffs, type Handoff } from '../driver-roster/handoffs';
 import { startOfIsraelDay } from '../time/zone';
 import { formatWorkerName } from '../utils/display-name';
 
@@ -74,7 +75,87 @@ export interface DirectoryEntry {
   phone: string | null;
   city: string | null;
   /** Their shift on the roster day shown, if they have one. */
-  shift: { startTime: Date; endTime: Date; originStation: string | null } | null;
+  shift: DayShift | null;
+}
+
+/** A partner in a handoff, as shown to a driver. */
+export interface HandoffPartner {
+  name: string;
+  phone: string | null;
+  trainNumber: string;
+  station: string | null;
+  startTime: Date;
+  endTime: Date;
+}
+
+/** One shift of a roster day: the work and who it changes hands with. */
+export interface DayShift {
+  shiftId: string;
+  startTime: Date;
+  endTime: Date;
+  originStation: string | null;
+  mirs: string | null;
+  task: string | null;
+  trainNumbers: string[];
+  companion: string | null;
+  /** "אני מחליף את" - drivers this shift takes a train over from. */
+  takesOverFrom: HandoffPartner[];
+  /** "מחליף אותי" - drivers this shift hands a train to. */
+  handsOverTo: HandoffPartner[];
+}
+
+/** Every shift of one roster day, by worker, with the day's handoffs worked out. */
+export async function loadRosterDay(tenantId: string, day: Date): Promise<Map<string, DayShift>> {
+  const shifts = await prisma.shift.findMany({
+    where: { tenantId, date: day },
+    include: { driverDuty: true, worker: true },
+    orderBy: { startTime: 'asc' },
+  });
+  const handoffs = dayHandoffs(
+    shifts.map((s) => ({
+      shiftId: s.id,
+      workerId: s.workerId,
+      startTime: s.startTime,
+      originStation: s.driverDuty?.originStation ?? null,
+      task: s.driverDuty?.task ?? '',
+    })),
+  );
+  const byShift = new Map(shifts.map((s) => [s.id, s]));
+  const partner = (h: Handoff): HandoffPartner => {
+    const other = byShift.get(h.shiftId)!;
+    return {
+      name: formatWorkerName(other.worker),
+      phone: other.worker.phone,
+      trainNumber: h.trainNumber,
+      station: h.station,
+      startTime: other.startTime,
+      endTime: other.endTime,
+    };
+  };
+
+  // A driver with two lines that day is shown at their first.
+  const byWorker = new Map<string, DayShift>();
+  for (const s of shifts) {
+    if (byWorker.has(s.workerId)) continue;
+    const duty = s.driverDuty;
+    const h = handoffs.get(s.id);
+    byWorker.set(s.workerId, {
+      shiftId: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      originStation: duty?.originStation ?? null,
+      mirs: duty?.mirs ?? null,
+      task: duty?.task ?? null,
+      trainNumbers: duty?.trainNumbers ?? [],
+      companion:
+        duty?.companionRole && duty.companionName
+          ? `${duty.companionRole} ${duty.companionName}${duty.companionWorkerNumber ? ` (${duty.companionWorkerNumber})` : ''}`
+          : null,
+      takesOverFrom: (h?.takesOverFrom ?? []).map(partner),
+      handsOverTo: (h?.handsOverTo ?? []).map(partner),
+    });
+  }
+  return byWorker;
 }
 
 export interface DriverDirectory {
@@ -82,6 +163,8 @@ export interface DriverDirectory {
   day: Date | null;
   /** Every driver: those on shift that day first, by start time, then the rest by name. */
   entries: DirectoryEntry[];
+  /** The day's shifts by worker, for callers that need more than the list. */
+  byWorker: Map<string, DayShift>;
 }
 
 export async function getDriverDirectory(tenantId: string, now: Date): Promise<DriverDirectory> {
@@ -99,31 +182,13 @@ export async function getDriverDirectory(tenantId: string, now: Date): Promise<D
   ]);
   const day = pickRosterDay([...ahead, ...(before ? [before] : [])].map((s) => s.date), now);
 
-  const [drivers, shifts] = await Promise.all([
+  const [drivers, shiftByWorker] = await Promise.all([
     prisma.user.findMany({
       where: { tenantId, role: 'DRIVER' },
       select: { id: true, firstName: true, lastName: true, workerNumber: true, phone: true, city: true },
     }),
-    day
-      ? prisma.shift.findMany({
-          where: { tenantId, date: day },
-          select: { workerId: true, startTime: true, endTime: true, driverDuty: { select: { originStation: true } } },
-          orderBy: { startTime: 'asc' },
-        })
-      : Promise.resolve([]),
+    day ? loadRosterDay(tenantId, day) : Promise.resolve(new Map<string, DayShift>()),
   ]);
-
-  // A driver with two lines that day is listed at their first.
-  const shiftByWorker = new Map<string, DirectoryEntry['shift']>();
-  for (const s of shifts) {
-    if (!shiftByWorker.has(s.workerId)) {
-      shiftByWorker.set(s.workerId, {
-        startTime: s.startTime,
-        endTime: s.endTime,
-        originStation: s.driverDuty?.originStation ?? null,
-      });
-    }
-  }
 
   const entries: DirectoryEntry[] = drivers.map((d) => ({
     id: d.id,
@@ -139,45 +204,6 @@ export async function getDriverDirectory(tenantId: string, now: Date): Promise<D
     return a.name.localeCompare(b.name, 'he');
   });
 
-  return { day, entries };
+  return { day, entries, byWorker: shiftByWorker };
 }
 
-export interface TrainPartner {
-  trainNumber: string;
-  drivers: { id: string; name: string; phone: string | null; startTime: Date; endTime: Date }[];
-}
-
-/**
- * The drivers' counterpart of the פקחים handoffs: for each train on this
- * shift, the other drivers that day whose task names the same train - the one
- * who brings the train in or takes it on. The roster gives no order within a
- * train, so they are listed by shift start rather than called "before"/"after".
- */
-export async function getTrainPartners(shift: { id: string; date: Date; trainNumbers: string[] }, tenantId: string): Promise<TrainPartner[]> {
-  if (shift.trainNumbers.length === 0) return [];
-  const others = await prisma.driverDuty.findMany({
-    where: {
-      tenantId,
-      shiftId: { not: shift.id },
-      trainNumbers: { hasSome: shift.trainNumbers },
-      shift: { date: shift.date },
-    },
-    include: { shift: { include: { worker: true } } },
-    orderBy: { shift: { startTime: 'asc' } },
-  });
-
-  return shift.trainNumbers
-    .map((trainNumber) => ({
-      trainNumber,
-      drivers: others
-        .filter((d) => d.trainNumbers.includes(trainNumber))
-        .map((d) => ({
-          id: d.shift.worker.id,
-          name: formatWorkerName(d.shift.worker),
-          phone: d.shift.worker.phone,
-          startTime: d.shift.startTime,
-          endTime: d.shift.endTime,
-        })),
-    }))
-    .filter((t) => t.drivers.length > 0);
-}

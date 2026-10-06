@@ -1,18 +1,29 @@
 import type { ReactNode } from 'react';
-import { CalendarClock, MapPin, MessageCircle, Radio, TrainFront, UserRound } from 'lucide-react';
+import { ArrowLeftRight, CalendarClock, MapPin, MessageCircle, Radio, UserRound } from 'lucide-react';
 import { he } from '@/lib/he';
 import { formatIsraelTime } from '@/lib/time/zone';
 import { toWhatsAppLink } from '@/lib/utils/whatsapp';
 import { isOnShift, relativeDayLabel } from '@/lib/driver-roster/display';
 import type { DriverShiftView } from '@/lib/services/driver-home-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
+import { HandoffList, type HandoffView } from './HandoffList';
+import { TrainChips } from './TrainChips';
 import { Badge } from '../../_components/ui/Badge';
 import { EmptyState } from '../../_components/ui/EmptyState';
 
 const span = (s: DriverShiftView) => `${formatIsraelTime(s.startTime)}–${formatIsraelTime(s.endTime)}`;
 
 /** The driver's next shift in full, then the ones after it in a line each. */
-export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date }) {
+export function MyShifts({
+  shifts,
+  now,
+  handoffs,
+}: {
+  shifts: DriverShiftView[];
+  now: Date;
+  /** Handoffs of the first shift shown; absent when its day could not be read. */
+  handoffs?: { takesOverFrom: HandoffView[]; handsOverTo: HandoffView[] };
+}) {
   const t = he.drivers.home;
   const [next, ...later] = shifts;
 
@@ -54,24 +65,7 @@ export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date
           <Detail icon={<Radio size={14} />} label={t.mirs} value={next.mirs} />
         </dl>
 
-        {next.trainNumbers.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-              <TrainFront size={14} />
-              {t.trains}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {next.trainNumbers.map((n) => (
-                <span
-                  key={n}
-                  className="rounded-full bg-surface-sunken px-2.5 py-0.5 text-sm font-medium text-foreground tabular-nums"
-                >
-                  {n}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <TrainChips task={next.task} fallback={next.trainNumbers} />
 
         {next.task && (
           <div className="flex flex-col gap-1">
@@ -80,6 +74,17 @@ export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date
               {next.serial !== null && ` · ${t.row(next.serial)}`}
             </p>
             <p className="text-sm leading-relaxed text-foreground">{next.task}</p>
+          </div>
+        )}
+
+        {handoffs && (
+          <div className="flex flex-col gap-2 border-t border-border pt-3">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <ArrowLeftRight size={15} />
+              {he.drivers.handoffs.title}
+            </p>
+            <HandoffList takesOverFrom={handoffs.takesOverFrom} handsOverTo={handoffs.handsOverTo} person="me" />
+            <p className="text-xs text-muted">{he.drivers.handoffs.note}</p>
           </div>
         )}
 
