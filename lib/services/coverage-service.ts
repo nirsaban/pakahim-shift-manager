@@ -1,4 +1,5 @@
 import { prisma } from '../db/prisma';
+import { WORKER_ROLES, isDriversAdmin, isWorkerRole } from '../auth/roles';
 import { he } from '../he';
 import { sendCoverageDecisionEmail, sendCoverageRequestEmail } from '../mail/mailer';
 import { notify } from './push-service';
@@ -34,6 +35,7 @@ async function canDecideForTeam(actingUserId: string, teamId: string): Promise<b
   const team = await prisma.team.findUnique({ where: { id: teamId }, select: { tenantId: true } });
   if (!team || team.tenantId !== actor.tenantId) return false;
   if (CROSS_TEAM_DECIDER_ROLES.has(actor.role)) return true;
+  if (isDriversAdmin(actor)) return true;
   if (actor.role !== 'TEAM_LEAD') return false;
   const led = await prisma.team.findFirst({ where: { id: teamId, teamLeadId: actingUserId } });
   return !!led;
@@ -76,7 +78,7 @@ export async function requestCoverage(requestedById: string, input: RequestCover
 
   if (input.proposedReplacementId) {
     const proposed = await prisma.user.findUnique({ where: { id: input.proposedReplacementId } });
-    if (!proposed || proposed.role !== 'PAKAHIM' || proposed.teamId !== shift.teamId) {
+    if (!proposed || !isWorkerRole(proposed.role) || proposed.teamId !== shift.teamId) {
       return fail(400, 'invalid_proposed_replacement');
     }
   }
@@ -172,7 +174,7 @@ export async function decideCoverageRequest(
   if (!finalReplacementId) return fail(400, 'replacement_required');
 
   const replacement = await prisma.user.findUnique({ where: { id: finalReplacementId } });
-  if (!replacement || replacement.role !== 'PAKAHIM' || replacement.tenantId !== request.shift.tenantId) {
+  if (!replacement || !isWorkerRole(replacement.role) || replacement.tenantId !== request.shift.tenantId) {
     return fail(400, 'invalid_replacement');
   }
   if (replacement.id === request.shift.workerId) return fail(400, 'cannot_replace_self');
@@ -251,7 +253,7 @@ export async function assignReplacement(
 
   if (replacementId) {
     const replacement = await prisma.user.findUnique({ where: { id: replacementId } });
-    if (!replacement || replacement.role !== 'PAKAHIM' || replacement.tenantId !== shift.tenantId) {
+    if (!replacement || !isWorkerRole(replacement.role) || replacement.tenantId !== shift.tenantId) {
       return fail(400, 'invalid_replacement');
     }
     if (replacement.id === shift.workerId) return fail(400, 'cannot_replace_self');
@@ -349,10 +351,10 @@ export async function getPendingRequestForShift(shiftId: string) {
   return prisma.coverageRequest.findFirst({ where: { shiftId, status: 'PENDING' } });
 }
 
-/** Same-team PAKAHIM roster for the "propose who covers" / direct-assign pickers. */
+/** Same-team workers for the "propose who covers" / direct-assign pickers. */
 export async function getSameTeamCandidates(teamId: string, excludeUserId: string) {
   const members = await prisma.user.findMany({
-    where: { teamId, role: 'PAKAHIM', id: { not: excludeUserId } },
+    where: { teamId, role: { in: WORKER_ROLES }, id: { not: excludeUserId } },
     orderBy: { firstName: 'asc' },
   });
   return members.map((m) => ({ id: m.id, name: formatWorkerName(m) }));

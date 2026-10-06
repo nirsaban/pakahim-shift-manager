@@ -14,9 +14,12 @@ import { WORKLOAD_RANGES, type WorkloadRange } from '@/lib/roster/workload-range
 export function WorkloadRangeTabs({
   active,
   param = 'load',
+  basePath = '/dashboard',
 }: {
   active: WorkloadRange;
   param?: string;
+  /** The page the tabs link back to - the drivers' home reuses this card. */
+  basePath?: string;
 }) {
   return (
     <nav
@@ -28,7 +31,7 @@ export function WorkloadRangeTabs({
         return (
           <Link
             key={range}
-            href={`/dashboard?${param}=${range}`}
+            href={`${basePath}?${param}=${range}`}
             scroll={false}
             aria-current={isActive ? 'page' : undefined}
             className={

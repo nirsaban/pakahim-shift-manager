@@ -1,4 +1,5 @@
 import { prisma } from '../db/prisma';
+import { WORKER_ROLES } from '../auth/roles';
 
 export interface AnalyticsSnapshot {
   coverageRatePercent: number | null; // null when there's no SICK/HOLIDAY shifts to measure against
@@ -31,7 +32,7 @@ export async function getAnalyticsSnapshot(tenantId: string): Promise<AnalyticsS
       select: { replacementId: true },
     }),
     prisma.incident.groupBy({ by: ['status'], where: { tenantId }, _count: true }),
-    prisma.user.findMany({ where: { tenantId, role: 'PAKAHIM' }, select: { email: true } }),
+    prisma.user.findMany({ where: { tenantId, role: { in: WORKER_ROLES } }, select: { email: true } }),
     prisma.coverageRequest.count({ where: { tenantId, status: 'PENDING' } }),
   ]);
 

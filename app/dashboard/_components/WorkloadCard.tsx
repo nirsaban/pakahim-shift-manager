@@ -64,7 +64,15 @@ function RestWarnings({ metrics }: { metrics: WorkloadMetrics }) {
 }
 
 /** How the worker's own roster reads: hours, nights, weekends, rest, and fairness. */
-export function WorkloadCard({ workload, range }: { workload: WorkerWorkload; range: WorkloadRange }) {
+export function WorkloadCard({
+  workload,
+  range,
+  basePath,
+}: {
+  workload: WorkerWorkload;
+  range: WorkloadRange;
+  basePath?: string;
+}) {
   const { metrics, comparison, window } = workload;
 
   return (
@@ -72,7 +80,7 @@ export function WorkloadCard({ workload, range }: { workload: WorkerWorkload; ra
       <CardHeader
         title={he.workload.title}
         icon={<BarChart3 size={16} />}
-        action={<WorkloadRangeTabs active={range} />}
+        action={<WorkloadRangeTabs active={range} basePath={basePath} />}
       />
 
       <p className="-mt-2 mb-3 text-xs text-muted">
@@ -162,18 +170,20 @@ export function TeamWorkloadCard({
   averageMinutes,
   window,
   range,
+  basePath,
 }: {
   members: TeamMemberWorkload[];
   averageMinutes: number | null;
   window: { from: Date; to: Date };
   range: WorkloadRange;
+  basePath?: string;
 }) {
   return (
     <Card>
       <CardHeader
         title={he.workload.teamTitle}
         icon={<BarChart3 size={16} />}
-        action={<WorkloadRangeTabs active={range} />}
+        action={<WorkloadRangeTabs active={range} basePath={basePath} />}
       />
 
       <p className="-mt-2 mb-3 text-xs text-muted">

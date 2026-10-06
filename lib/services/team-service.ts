@@ -1,11 +1,11 @@
 import { prisma } from '../db/prisma';
 import { formatWorkerName } from '../utils/display-name';
+import { addIsraelDays, startOfIsraelDay } from '../time/zone';
 
+/** Today in Israel - not in the server's zone, which setHours would read (see time-and-zones.md). */
 function todayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
+  const start = startOfIsraelDay(new Date());
+  const end = new Date(addIsraelDays(start, 1).getTime() - 1);
   return { start, end };
 }
 

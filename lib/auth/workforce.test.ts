@@ -81,8 +81,28 @@ describe('canAccessPath', () => {
     expect(canAccessPath('/api/drivers/roster', 'pakahim')).toBe(false);
   });
 
-  it('closes every פקחים route to a driver session', () => {
-    for (const path of pakahimPaths.filter((p) => p !== '/api/auth/logout')) {
+  // The routes drivers share with פקחים. Each acts on the signed-in user or is
+  // tenant-checked; anything not listed here must stay closed to drivers.
+  const sharedWithDrivers = [
+    '/api/auth/logout',
+    '/settings',
+    '/api/users/me',
+    '/api/users/me/email',
+    '/api/users/me/reminders',
+    '/api/push/subscribe',
+    '/api/notifications/incidents',
+    '/api/notifications/incidents/sample-id',
+    '/api/shifts/sample-id/replacement',
+  ];
+
+  it('opens only the shared routes to a driver session', () => {
+    for (const path of pakahimPaths) {
+      expect(canAccessPath(path, 'drivers'), path).toBe(sharedWithDrivers.includes(path));
+    }
+  });
+
+  it('keeps the פקחים admin, roster and team routes closed to drivers', () => {
+    for (const path of ['/dashboard', '/admin/upload', '/admin/manage', '/api/users', '/api/users/sample-id', '/api/teams', '/api/uploads', '/api/shifts/next', '/api/roster/swaps', '/api/coverage-requests']) {
       expect(canAccessPath(path, 'drivers'), path).toBe(false);
     }
   });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { he } from '@/lib/he';
 import { updateProfileSchema } from '@/lib/validation/profile';
+import { findDriversByPhone } from '@/lib/auth/driver-auth';
 
 /**
  * A worker editing their own details.
@@ -50,6 +51,18 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { firstName, lastName, city, phone } = parsed.data;
+
+  // A driver logs in by phone, so two drivers on one number would lock both
+  // out of phone login. פקחים log in by worker number and are unaffected.
+  if (phone) {
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, tenantId: true } });
+    if (me?.role === 'DRIVER') {
+      const owners = await findDriversByPhone(me.tenantId, phone);
+      if (owners.some((d) => d.id !== userId)) {
+        return NextResponse.json({ error: he.drivers.phoneTaken }, { status: 409 });
+      }
+    }
+  }
 
   const user = await prisma.user.update({
     where: { id: userId },

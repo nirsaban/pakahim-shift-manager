@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ArrowRight, CalendarDays, History, Radar, UploadCloud } from 'lucide-react';
-import { he } from '@/lib/he';
+import { he, uploadStatusLabel } from '@/lib/he';
 import { getDefaultTenantId } from '@/lib/db/tenant';
 import { listUploadRecords } from '@/lib/services/upload-service';
 import { formatIsraelDateTime, israelMidnight } from '@/lib/time/zone';
@@ -14,17 +14,6 @@ import { Button } from '../../_components/ui/Button';
 import { EmptyState } from '../../_components/ui/EmptyState';
 
 const ALLOWED_ROLES = new Set(['SHIBUTZ', 'ADMIN', 'SUPER_ADMIN']);
-
-function uploadStatusLabel(status: string): string {
-  switch (status) {
-    case 'IMPORTED':
-      return 'יובא בהצלחה';
-    case 'FAILED':
-      return 'נכשל';
-    default:
-      return status;
-  }
-}
 
 /** yyyy-mm-dd as the weekday+date an admin recognises from the file itself. */
 function dayLabel(isoDate: string): string {

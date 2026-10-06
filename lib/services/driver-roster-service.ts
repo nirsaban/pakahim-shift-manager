@@ -3,7 +3,8 @@ import { he } from '../he';
 import { readPdfTextItems } from '../driver-roster/pdf';
 import { parseDriverRoster, type DriverRosterRow } from '../driver-roster/roster';
 import { planRosterPublish, shiftWindow, type RosterDate } from '../driver-roster/roster-plan';
-import { israelMidnight } from '../time/zone';
+import { formatIsraelDate, israelMidnight } from '../time/zone';
+import { notify } from './push-service';
 import { DRIVERS_SOUTH_TEAM } from './driver-contacts-service';
 
 /**
@@ -82,7 +83,7 @@ export async function importDriverRoster(input: ImportDriverRosterInput): Promis
     }),
     prisma.shift.findMany({
       where: { tenantId: input.tenantId, date: day },
-      select: { id: true, workerId: true },
+      select: { id: true, workerId: true, startTime: true, endTime: true },
       orderBy: { startTime: 'asc' },
     }),
   ]);
@@ -193,5 +194,51 @@ export async function importDriverRoster(input: ImportDriverRosterInput): Promis
     { timeout: 60_000 },
   );
 
+  notifyRosterChanges(date, day, plan, existing, driverIdByNumber);
   return { ok: true, summary };
+}
+
+/**
+ * Tells drivers what this publish changed for them, as the פקחים import does:
+ * newly on the day, times moved, or off the day. An unchanged re-upload sends
+ * nothing. Best-effort, after the write - a push outage must not fail a publish.
+ */
+function notifyRosterChanges(
+  date: RosterDate,
+  day: Date,
+  plan: ReturnType<typeof planRosterPublish>,
+  existing: { id: string; workerId: string; startTime: Date; endTime: Date }[],
+  driverIdByNumber: Map<string, string>,
+): void {
+  const before = new Map(existing.map((s) => [s.id, s]));
+  const assigned = new Set<string>();
+  const changed = new Set<string>();
+  const stillOn = new Set<string>();
+
+  for (const { row, workerId, existingShiftId } of plan.shifts) {
+    const id = workerId ?? driverIdByNumber.get(row.workerNumber!);
+    if (!id) continue;
+    stillOn.add(id);
+    const previous = existingShiftId ? before.get(existingShiftId) : undefined;
+    if (!previous) {
+      assigned.add(id);
+      continue;
+    }
+    const window = shiftWindow(date, row);
+    if (window.startTime.getTime() !== previous.startTime.getTime() || window.endTime.getTime() !== previous.endTime.getTime()) {
+      changed.add(id);
+    }
+  }
+  const removed = plan.removeShiftIds
+    .map((id) => before.get(id)?.workerId)
+    .filter((id): id is string => Boolean(id) && !stillOn.has(id!));
+
+  const when = formatIsraelDate(day, { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const send = (ids: Iterable<string>, copy: { title: string; body: (when: string) => string }) => {
+    const list = [...ids];
+    if (list.length > 0) notify(list, { title: copy.title, body: copy.body(when), url: '/drivers', tag: 'roster-import' });
+  };
+  send(assigned, he.push.shiftAssigned);
+  send(changed, he.push.shiftChanged);
+  send(removed, he.push.shiftRemoved);
 }

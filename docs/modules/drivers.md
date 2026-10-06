@@ -4,8 +4,9 @@ A second workforce on the same app, added 2026-10-05 after the פקחים versio
 Same idea (log in, see today's shift), different people and different source files.
 The rule throughout is **don't mix**: the פקחים app must behave exactly as before.
 
-Status: phases 0–4 are done: tenant safety, data model and contacts import, login,
-roster PDF upload, and the driver screen.
+Status: phases 0–4 are done and live: tenant safety, data model and contacts import,
+login, roster PDF upload, and the driver screen. Phase 5 (2026-10-06) brought the drivers
+to parity with the פקחים app - see "Feature parity with פקחים" below.
 
 ## Scope (from the user, 2026-10-05)
 
@@ -211,3 +212,49 @@ Later shifts follow, one line each.
 strings, so a phone's own zone never comes into it. `relativeDayLabel` and
 `pickRosterDay` are tested at 00:30 Israel time, when UTC and New York are still on the
 previous day.
+
+## Feature parity with פקחים (phase 5)
+
+The client asked for "everything the פקחים section has" for drivers too, with the roster
+admin (איתן) as a working driver who also has every admin power. This mirrors the
+פקחים admin, who is likewise a worker plus admin, though there it is two accounts.
+
+| פקחים feature | Drivers |
+| --- | --- |
+| Shift card: current/next, sick/holiday badge, replacement with WhatsApp | `MyShifts` (+ origin, Mirs, trains, trainee) |
+| "Covering for" | same card, `getShiftsCoveringFor` |
+| Handoffs / train companions | `TrainPartners`: other drivers whose task that day names the same train |
+| My schedule (7 back, 14 ahead) | `MySchedule`, reused |
+| Workload week/month/year | `WorkloadCard`, reused (`basePath="/drivers"`) |
+| Incident report | `ReportIncidentForm`, reused; it reaches the team lead (the roster admin) |
+| Settings: profile, email, reminders | `/settings`, shared |
+| Push notifications, reminder tones | `NotificationsPrompt`, `AlertSoundPlayer`, reminder-service, unchanged |
+| Push on roster import (assigned / changed / removed) | `notifyRosterChanges` in driver-roster-service |
+| Team lead: upcoming roster, team status, team workload, incidents inbox | `/drivers/team` |
+| Direct replacement assignment | `/drivers/team`, same `DirectAssignForm` and API |
+| Admin: upload, upload history | `/drivers/upload`, `/drivers/uploads` |
+| Admin: manage workers | `/drivers/manage`: add a driver; fix name, number, phone, city |
+| Admin: analytics | stats card on `/drivers/team` |
+
+**How it is shared without mixing:**
+- **Services** treat `WORKER_ROLES` (`PAKAHIM`, `DRIVER`) as workers, and every
+  id-based action checks the tenant.
+- **The roster admin** passes `isDriversAdmin` where a team lead or admin would.
+  - It applies only to his own tenant's teams (`canDecideForTeam`).
+  - He never holds `ADMIN`.
+- **Routes open to drivers** (`lib/auth/workforce.ts` `SHARED_PATHS`): only routes that
+  act on the signed-in user or are tenant-checked.
+  - `/settings`, `/api/users/me*`, `/api/push/subscribe`;
+  - `/api/notifications/incidents*`, `/api/shifts/[id]/replacement`.
+  - Everything else stays closed to them, and the test walks every route both ways.
+- **Phone uniqueness:** a driver's phone is their login. Settings and the admin list
+  refuse a phone another driver already has, because two drivers on one phone would lock
+  both out of phone login.
+
+**Not carried over:** these run on the פקחים booklet's leg grammar (stations and legs
+per duty), which the drivers' report does not have in that form.
+- swap suggestions;
+- the commander board;
+- the station-level handoff detail.
+
+Timezone repair and WhatsApp pairing are global admin tools and stay with the פקחים admin.

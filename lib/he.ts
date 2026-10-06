@@ -307,6 +307,7 @@ export const he = {
     phoneNotFound: 'מספר הטלפון לא נמצא ברשימת הנהגים - פנה לאחראי הסידור',
     phoneMismatch: 'מספר הטלפון לא תואם למספר הרשום אצלנו - פנה לאחראי הסידור',
     phoneShared: 'מספר הטלפון רשום אצל יותר מנהג אחד - פנה לאחראי הסידור',
+    phoneTaken: 'מספר הטלפון הזה כבר רשום אצל נהג אחר',
     firstLoginRequired: 'זו הכניסה הראשונה שלך - התחבר עם מספר העובד',
     otpSentBoth: 'קוד נשלח אליך בוואטסאפ ובדוא"ל',
     otpRecentlySent: 'קוד נשלח אליך לפני רגע - בדוק בוואטסאפ ובדוא"ל',
@@ -331,6 +332,53 @@ export const he = {
       notOnShift: 'לא בסידור',
       noResults: 'לא נמצאו נהגים',
       call: (name: string) => `התקשר אל ${name}`,
+    },
+    // The roster admin's area: he acts as the drivers' team lead and admin.
+    admin: {
+      title: 'ניהול נהגים',
+      team: 'סידור וצוות',
+      manage: 'רשימת נהגים',
+      uploads: 'היסטוריית העלאות',
+      backHome: 'חזרה',
+      teamStatusToday: 'סטטוס היום',
+      teamStatusEmpty: 'אין נהגים בסידור היום',
+      shiftsToday: (count: number) => `${count} משמרות היום`,
+      stats: 'נתונים',
+    },
+    manage: {
+      title: 'רשימת נהגים',
+      subtitle: 'הוספת נהג ותיקון שם, מספר עובד, טלפון ועיר. נהג בלי טלפון או מספר עובד לא יכול להתחבר.',
+      search: 'חיפוש לפי שם, מספר עובד, טלפון או עיר',
+      filterAll: 'כולם',
+      filterCannotLogin: 'לא יכולים להתחבר',
+      filterNotRegistered: 'טרם נכנסו',
+      add: 'הוספת נהג',
+      edit: 'עריכה',
+      save: 'שמירה',
+      cancel: 'ביטול',
+      saved: 'נשמר',
+      name: 'שם מלא',
+      workerNumber: 'מספר עובד',
+      phone: 'טלפון נייד',
+      city: 'עיר',
+      registered: 'נכנס לאפליקציה',
+      notRegistered: 'טרם נכנס',
+      cannotLogin: 'חסר טלפון או מספר עובד',
+      rosterAdmin: 'אחראי סידור',
+      count: (shown: number, total: number) => `${shown} מתוך ${total}`,
+      errors: {
+        not_found: 'הנהג לא נמצא',
+        phone_taken: 'מספר הטלפון כבר רשום אצל נהג אחר',
+        worker_number_taken: 'מספר העובד כבר רשום אצל נהג אחר',
+        no_team: 'צוות הנהגים לא הוגדר',
+        invalid_phone: 'מספר טלפון נייד לא תקין',
+        invalid_worker_number: 'מספר עובד לא תקין',
+      },
+    },
+    trains: {
+      title: 'נהגים ברכבות שלי',
+      subtitle: 'נהגים נוספים שהרכבת מופיעה גם במשימה שלהם היום',
+      train: (n: string) => `רכבת ${n}`,
     },
     upload: {
       title: 'העלאת סידור עבודה',
@@ -943,6 +991,21 @@ export function transportLabel(mode: string): string {
 export function opLabel(code: string | null): string {
   if (!code) return '';
   return (he.roster.myShift.op as Record<string, string>)[code] ?? code;
+}
+
+export function uploadStatusLabel(status: string): string {
+  switch (status) {
+    case 'IMPORTED':
+      return 'יובא בהצלחה';
+    case 'FAILED':
+      return 'נכשל';
+    default:
+      return status;
+  }
+}
+
+export function driverAdminErrorMessage(code: string | undefined): string {
+  return (code && (he.drivers.manage.errors as Record<string, string>)[code]) || he.error.required;
 }
 
 export function adminErrorMessage(code: string): string {

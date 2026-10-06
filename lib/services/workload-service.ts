@@ -1,4 +1,5 @@
 import { prisma } from '../db/prisma';
+import { WORKER_ROLES } from '../auth/roles';
 import { compareToTeam, computeWorkload, type WorkloadMetrics } from '../roster/workload';
 import {
   DEFAULT_WORKLOAD_RANGE,
@@ -84,7 +85,7 @@ export async function getTeamWorkload(
 
   const [members, shifts] = await Promise.all([
     prisma.user.findMany({
-      where: { teamId: teamFilter, role: 'PAKAHIM' },
+      where: { teamId: teamFilter, role: { in: WORKER_ROLES } },
       select: { id: true, firstName: true, lastName: true, email: true, workerNumber: true },
     }),
     prisma.shift.findMany({

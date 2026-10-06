@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import { destroySession } from '@/lib/auth/session';
+import { homePathFor, parseWorkforce } from '@/lib/auth/workforce';
 import { he } from '@/lib/he';
 import type { ReminderSound } from '@/lib/notifications/reminder-rules';
 import { Brand } from '../_components/Brand';
@@ -24,6 +25,8 @@ export default async function SettingsPage() {
   const headersList = await headers();
   const userId = headersList.get('x-user-id') as string;
   const sessionId = headersList.get('x-session-id');
+  // Drivers share this page; "back" takes each workforce to its own home.
+  const home = homePathFor(parseWorkforce(headersList.get('x-workforce')));
 
   // Same stale-session guard as the dashboard: a live Redis session can outlive
   // the user row it points at, and throwing here would 500 rather than sign out.
@@ -50,7 +53,7 @@ export default async function SettingsPage() {
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 pb-10">
       <PageHeader>
         <Brand size="compact" />
-        <Link href="/dashboard">
+        <Link href={home}>
           <Button variant="secondary" size="md">
             <ArrowRight size={15} />
             {he.button.back}

@@ -19,8 +19,23 @@ export function parseWorkforce(value: unknown): Workforce {
 
 const DRIVER_PREFIXES = ['/drivers', '/api/drivers'];
 
-/** Reachable by either workforce once signed in. */
-const SHARED_PATHS = new Set(['/api/auth/logout']);
+/**
+ * Reachable by either workforce once signed in. Every one of these acts on the
+ * signed-in user or derives the tenant from them (and checks it), so sharing
+ * the route shares no data: profile and settings, push subscription, incident
+ * reports - which reach the reporter's own team lead - and replacement
+ * assignment, which is tenant-checked in coverage-service.
+ */
+const SHARED_PATHS = new Set([
+  '/api/auth/logout',
+  '/settings',
+  '/api/users/me',
+  '/api/users/me/email',
+  '/api/users/me/reminders',
+  '/api/push/subscribe',
+  '/api/notifications/incidents',
+]);
+const SHARED_PATTERNS = [/^\/api\/notifications\/incidents\/[^/]+$/, /^\/api\/shifts\/[^/]+\/replacement$/];
 
 function underPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -38,7 +53,7 @@ export function isDriverPath(pathname: string): boolean {
  * by someone remembering to exclude it.
  */
 export function canAccessPath(pathname: string, workforce: Workforce): boolean {
-  if (SHARED_PATHS.has(pathname)) return true;
+  if (SHARED_PATHS.has(pathname) || SHARED_PATTERNS.some((re) => re.test(pathname))) return true;
   return workforce === 'drivers' ? isDriverPath(pathname) : !isDriverPath(pathname);
 }
 

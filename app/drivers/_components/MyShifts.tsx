@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { CalendarClock, MapPin, Radio, TrainFront, UserRound } from 'lucide-react';
+import { CalendarClock, MapPin, MessageCircle, Radio, TrainFront, UserRound } from 'lucide-react';
 import { he } from '@/lib/he';
 import { formatIsraelTime } from '@/lib/time/zone';
+import { toWhatsAppLink } from '@/lib/utils/whatsapp';
 import { isOnShift, relativeDayLabel } from '@/lib/driver-roster/display';
 import type { DriverShiftView } from '@/lib/services/driver-home-service';
 import { Card, CardHeader } from '../../_components/ui/Card';
@@ -29,7 +30,13 @@ export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date
       <CardHeader
         title={t.myShift}
         icon={<CalendarClock size={18} />}
-        action={isOnShift(next, now) ? <Badge tone="success">{t.onShiftNow}</Badge> : undefined}
+        action={
+          next.status === 'SICK' || next.status === 'HOLIDAY' ? (
+            <Badge tone="warning">{next.status === 'SICK' ? he.dashboard.onSickLeave : he.dashboard.onHoliday}</Badge>
+          ) : isOnShift(next, now) ? (
+            <Badge tone="success">{t.onShiftNow}</Badge>
+          ) : undefined
+        }
       />
 
       <div className="flex flex-col gap-4">
@@ -39,6 +46,8 @@ export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date
             {span(next)}
           </p>
         </div>
+
+        {next.replacement && <Replacement replacement={next.replacement} />}
 
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <Detail icon={<MapPin size={14} />} label={t.origin} value={next.originStation} />
@@ -105,6 +114,32 @@ export function MyShifts({ shifts, now }: { shifts: DriverShiftView[]; now: Date
         )}
       </div>
     </Card>
+  );
+}
+
+/** Who covers this shift, with a WhatsApp link - as on the פקחים shift card. */
+function Replacement({ replacement }: { replacement: NonNullable<DriverShiftView['replacement']> }) {
+  const link = toWhatsAppLink(replacement.phone);
+  return (
+    <div className="flex flex-col gap-1 rounded-[var(--radius-md)] bg-warning-bg p-3.5 text-warning-fg">
+      <p className="text-xs font-medium">{he.dashboard.replacement}</p>
+      <p className="font-semibold">{replacement.name}</p>
+      <p className="flex items-center gap-1 text-sm">
+        <MapPin size={13} />
+        {replacement.city ?? he.dashboard.locationUnknown}
+      </p>
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1.5 inline-flex w-fit items-center gap-1.5 rounded-[var(--radius-md)] bg-[#25D366] px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
+          <MessageCircle size={15} />
+          {he.dashboard.contactViaWhatsapp}
+        </a>
+      )}
+    </div>
   );
 }
 
