@@ -1,118 +1,51 @@
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { ShieldCheck } from 'lucide-react';
-import { prisma } from '@/lib/db/prisma';
-import { destroySession } from '@/lib/auth/session';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { AlertTriangle, CalendarDays, CalendarRange, ChevronLeft, ShieldCheck, TrainFront, Users } from 'lucide-react';
+import { requireDriver } from '@/lib/auth/driver-page';
 import { isDriversAdmin } from '@/lib/auth/roles';
 import { formatWorkerName } from '@/lib/utils/display-name';
 import { addIsraelDays, formatIsraelDateTime, formatIsraelTime, startOfIsraelDay } from '@/lib/time/zone';
-import { relativeDayLabel } from '@/lib/driver-roster/display';
-import { parseWorkloadRange, workloadWindowFor } from '@/lib/roster/workload-range';
-import {
-  getDriverDirectory,
-  getUpcomingDriverShifts,
-  loadRosterDay,
-} from '@/lib/services/driver-home-service';
-import { getWorkerSchedule } from '@/lib/services/worker-shift-service';
-import { getWorkerWorkload } from '@/lib/services/workload-service';
+import { getUpcomingDriverShifts } from '@/lib/services/driver-home-service';
+import { dayParam, defaultDay, getPublishedDays, getShiftDetail, getShiftsOf } from '@/lib/services/driver-views-service';
 import { getShiftsCoveringFor } from '@/lib/services/coverage-service';
-import { getTeamLeadContact } from '@/lib/services/team-service';
 import { he } from '@/lib/he';
 import { DataAccuracyNotice } from '../_components/DataAccuracyNotice';
 import { Card, CardHeader } from '../_components/ui/Card';
+import { EmptyState } from '../_components/ui/EmptyState';
 import { NotificationsPrompt } from '../dashboard/_components/NotificationsPrompt';
 import { AlertSoundPlayer } from '../dashboard/_components/AlertSoundPlayer';
-import { MySchedule } from '../dashboard/_components/MySchedule';
-import { WorkloadCard } from '../dashboard/_components/WorkloadCard';
-import { ReportIncidentForm } from '../dashboard/_components/ReportIncidentForm';
 import { DriverHeader } from './_components/DriverHeader';
 import { DriverAdminNav } from './_components/DriverAdminNav';
-import { MyShifts } from './_components/MyShifts';
-import { toHandoffView } from './_components/HandoffList';
-import { DriverDirectory, type DirectoryRow } from './_components/DriverDirectory';
-
-// Same spans as the פקחים dashboard's schedule card.
-const SCHEDULE_DAYS = 14;
-const SCHEDULE_DAYS_BACK = 7;
+import { NextShiftCard } from './_components/NextShiftCard';
+import { RowLink, rosterHref, shiftHref } from './_components/links';
+import { ShiftRowBody } from './_components/shift-bits';
 
 /**
- * Home for a locomotive driver - only a driver session reaches it (proxy.ts).
- * Everything a פקח's dashboard has that applies to drivers: the next shift,
- * who covers it, and who they take a train over from or hand one to; shifts
- * they cover; their schedule and workload; incident reports to their team
- * lead. Then the day's roster with everyone's contact details, where tapping
- * a driver opens their work that day. The roster admin also gets his tools.
+ * A driver's home: the next shift at a glance, and a way into everything
+ * else - their shifts, the day's roster, the drivers, a fault report. Each of
+ * those is a page of its own (and a tab at the bottom).
  */
-export default async function DriversHomePage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const headersList = await headers();
-  const userId = headersList.get('x-user-id') as string;
-  const sessionId = headersList.get('x-session-id');
-
-  // The session can outlive its user (account removed, database reset); treat
-  // that as signed out rather than failing the render.
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.role !== 'DRIVER') {
-    if (sessionId) await destroySession(sessionId);
-    redirect('/login');
-  }
-
-  const workloadRange = parseWorkloadRange((await searchParams).load);
+export default async function DriversHomePage() {
+  const user = await requireDriver();
   const now = new Date();
   const today = startOfIsraelDay(now);
 
-  const [shifts, directory, schedule, workload, coveringFor, teamLead] = await Promise.all([
-    getUpcomingDriverShifts(user.id, now),
-    getDriverDirectory(user.tenantId, now),
-    getWorkerSchedule(user.id, { from: addIsraelDays(today, -SCHEDULE_DAYS_BACK), to: addIsraelDays(today, SCHEDULE_DAYS + 1) }),
-    getWorkerWorkload(user.id, user.teamId, workloadWindowFor(workloadRange)),
+  const [upcoming, days, week, coveringFor] = await Promise.all([
+    getUpcomingDriverShifts(user.id, now, 1),
+    getPublishedDays(user.tenantId),
+    getShiftsOf(user.tenantId, user.id, today, addIsraelDays(today, 7)),
     getShiftsCoveringFor(user.id),
-    user.teamId ? getTeamLeadContact(user.teamId) : Promise.resolve(null),
   ]);
-  const next = shifts[0];
-  // The next shift's handoffs come from its own roster day - the same one the
-  // list shows, unless the next shift falls on another day.
-  const nextDay =
-    next && directory.day && next.date.getTime() === directory.day.getTime()
-      ? directory.byWorker
-      : next
-        ? await loadRosterDay(user.tenantId, next.date)
-        : null;
-  const myDay = next ? [...(nextDay?.values() ?? [])].find((d) => d.shiftId === next.id) : undefined;
-  const myHandoffs = myDay
-    ? { takesOverFrom: myDay.takesOverFrom.map(toHandoffView), handsOverTo: myDay.handsOverTo.map(toHandoffView) }
-    : undefined;
-
-  // Times are formatted here, in Israel time, so the client never reads them
-  // in the phone's own zone.
-  const rows: DirectoryRow[] = directory.entries.map((e) => ({
-    id: e.id,
-    name: e.name,
-    workerNumber: e.workerNumber,
-    phone: e.phone,
-    city: e.city,
-    shift: e.shift
-      ? {
-          span: `${formatIsraelTime(e.shift.startTime)}–${formatIsraelTime(e.shift.endTime)}`,
-          origin: e.shift.originStation,
-          mirs: e.shift.mirs,
-          task: e.shift.task,
-          trainNumbers: e.shift.trainNumbers,
-          companion: e.shift.companion,
-          takesOverFrom: e.shift.takesOverFrom.map(toHandoffView),
-          handsOverTo: e.shift.handsOverTo.map(toHandoffView),
-        }
-      : null,
-  }));
+  const next = upcoming[0] ? await getShiftDetail(user.tenantId, upcoming[0].id) : null;
+  const rosterDay = defaultDay(days, now);
+  const rosterCount = days.find((d) => d.date.getTime() === rosterDay?.getTime())?.shiftCount ?? 0;
+  const q = he.drivers.quick;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 pb-10">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6">
       <DriverHeader />
 
-      <div className="flex flex-col gap-6 pt-4">
+      <div className="flex flex-col gap-5 pt-4">
         <h1 className="text-2xl font-bold text-foreground">
           {he.drivers.home.greeting}, {formatWorkerName(user)}
         </h1>
@@ -122,36 +55,86 @@ export default async function DriversHomePage({
         {/* Renders nothing - plays the reminder tone a push brings in. */}
         <AlertSoundPlayer />
 
-        {isDriversAdmin(user) && <DriverAdminNav />}
+        <NextShiftCard shift={next} now={now} />
 
-        <MyShifts shifts={shifts} now={now} handoffs={myHandoffs} />
+        {/* The week ahead, a weekly upload's days included - each opening its shift. */}
+        <Card className="p-0">
+          <div className="px-5 pt-5">
+            <CardHeader
+              title={he.drivers.shiftsPage.myWeek}
+              icon={<CalendarRange size={16} />}
+              action={
+                <Link href="/drivers/shifts" className="inline-flex items-center text-sm font-medium text-primary-600 hover:underline">
+                  {he.drivers.shiftsPage.all}
+                  <ChevronLeft size={16} />
+                </Link>
+              }
+            />
+          </div>
+          {week.length === 0 ? (
+            <EmptyState>{he.drivers.shiftsPage.noneThisWeek}</EmptyState>
+          ) : (
+            <ul className="divide-y divide-border">
+              {week.map((s) => (
+                <li key={s.id} className={s.endTime <= now ? 'opacity-60' : undefined}>
+                  <RowLink href={shiftHref(s.id)}>
+                    <ShiftRowBody shift={s} now={now} title={s.originStation ?? he.drivers.shiftPage.title} detail={s.link} />
+                  </RowLink>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Tile href="/drivers/shifts" icon={<CalendarDays size={20} />} title={q.myShifts} detail={he.drivers.shiftsPage.thisWeek(week.length)} />
+          <Tile
+            href={rosterDay ? rosterHref(dayParam(rosterDay)) : '/drivers/roster'}
+            icon={<TrainFront size={20} />}
+            title={q.todayRoster}
+            detail={he.drivers.rosterPage.count(rosterCount)}
+          />
+          <Tile href="/drivers/people" icon={<Users size={20} />} title={he.drivers.nav.people} />
+          <Tile href="/drivers/report" icon={<AlertTriangle size={20} />} title={q.report} />
+        </div>
 
         {coveringFor.length > 0 && (
-          <Card>
-            <CardHeader title={he.dashboard.coveringForTitle} icon={<ShieldCheck size={16} />} />
-            <ul className="flex flex-col">
+          <Card className="p-0">
+            <div className="px-5 pt-5">
+              <CardHeader title={he.dashboard.coveringForTitle} icon={<ShieldCheck size={16} />} />
+            </div>
+            <ul className="divide-y divide-border">
               {coveringFor.map((s) => (
-                <li key={s.shiftId} className="flex flex-col gap-1 border-t border-border py-3 first:border-0 first:pt-0">
-                  <span className="font-medium text-foreground">
-                    {he.dashboard.coveringForSubtitle} {s.workerName}
-                  </span>
-                  <span className="text-sm text-muted">
-                    {formatIsraelDateTime(s.startTime)} - {formatIsraelTime(s.endTime)}
-                  </span>
+                <li key={s.shiftId}>
+                  <RowLink href={shiftHref(s.shiftId)}>
+                    <p className="font-medium text-foreground">
+                      {he.dashboard.coveringForSubtitle} {s.workerName}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {formatIsraelDateTime(s.startTime)} - {formatIsraelTime(s.endTime)}
+                    </p>
+                  </RowLink>
                 </li>
               ))}
             </ul>
           </Card>
         )}
 
-        <MySchedule entries={schedule} days={SCHEDULE_DAYS} />
-
-        <WorkloadCard workload={workload} range={workloadRange} basePath="/drivers" />
-
-        <ReportIncidentForm teamLeadPhone={teamLead?.phone} />
-
-        <DriverDirectory dayLabel={directory.day ? relativeDayLabel(directory.day, now) : null} rows={rows} />
+        {isDriversAdmin(user) && <DriverAdminNav />}
       </div>
     </main>
+  );
+}
+
+function Tile({ href, icon, title, detail }: { href: string; icon: ReactNode; title: string; detail?: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border bg-surface-raised p-4 shadow-[var(--shadow-card)] transition-colors hover:border-primary-500 active:bg-surface-sunken"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500/10 text-primary-600">{icon}</span>
+      <span className="font-semibold text-foreground">{title}</span>
+      {detail && <span className="text-xs text-muted">{detail}</span>}
+    </Link>
   );
 }

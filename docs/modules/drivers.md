@@ -189,7 +189,31 @@ and times are left out.
 - **Storage:** times go on `Shift`, the rest on `DriverDuty`.
 - **History:** every publish leaves a `ShiftFile` in the drivers tenant.
 
-## Driver screen (`/drivers`)
+## Driver pages (2026-10-06)
+
+The drivers' section is several pages, with a bottom tab bar (`DriverTabBar`, in
+`app/drivers/layout.tsx`). Everything shown about a shift, driver, train or station
+links to that thing's own page (`_components/links.tsx`). The data comes from
+`driver-views-service.ts`, and every function in it is scoped to the tenant.
+
+| Page | Shows |
+| --- | --- |
+| `/drivers` | The next shift (handoffs, trains, origin), **my week** (every shift in the next 7 days, weekly days included), quick tiles, the admin tools |
+| `/drivers/shifts` | My shifts, coming and past, and my workload |
+| `/drivers/shifts/[id]` | Any shift: times, origin, Mirs, link/row, source, cover, companion, handoffs both ways, the task as a timeline |
+| `/drivers/roster?day=` | One published day, with a strip of every published day (a weekly upload's 7 days are a tap apart) and a search over name, station, train and link |
+| `/drivers/people`, `/drivers/people/[id]` | Every driver, searchable; a driver's contact details and upcoming shifts |
+| `/drivers/trains/[n]?day=` | Who drives a train that day, in order, where it changes hands, and who rides it |
+| `/drivers/stations/[name]?day=` | Who starts at a station that day, and the trains changing hands there |
+| `/drivers/report`, `/drivers/admin` | Fault report; the roster admin's tools as a tab |
+
+`taskSteps` merges "מתחם" with the place after it ("מתחם אשקלון"), so the yard is one
+step and one station page, matching the origin.
+
+### Previous single-page screen
+
+The sections below describe the screen before the split. Their rules still apply,
+but they now run on the pages above.
 
 **My shift** (`MyShifts`) shows the next shift that has not ended:
 - day ("היום" / "מחר" / the date) and times;
@@ -305,8 +329,14 @@ The upload page also takes the **weekly** "דוח לינק יומי ושבועי
   chosen. Since the daily overrides weekly days, the two must not be confused.
 
 **Format (`lib/driver-roster/weekly.ts`):**
-- Landscape. One row per driver, starting at their link: "D01", or a second series
-  printed "ד01".
+- Landscape. One row per driver, starting at their link: a series letter and a number.
+  The 03–09/10 file has four series: "D01" (pages 1–13), "ד01" (14–17), "ל001" (18–24)
+  and "L01" (25–27). Any single letter is taken as a series.
+  - Until 2026-10-06 only D and ד were read. The ל and L rows (70 of 204, the roster
+    admin's "L08" among them) were dropped without a warning. A weekly file published
+    before that fix must be uploaded again.
+- In the ל series, brackets also group trains, "(30 אוטם 31)". Once the hours are taken
+  out, any bracket left is dropped from the task.
 - One column per day, from the header's dates.
 - **A cell** is a day off ("מנוחה"), or task lines followed by the hours in
   parentheses, "(04:20 11:05)", which may wrap or be glued: "(22:2504:35)".
@@ -326,8 +356,8 @@ The upload page also takes the **weekly** "דוח לינק יומי ושבועי
 2. the same words in another order;
 3. at most two letters apart, and only when exactly one driver is that close.
 
-On the 03–09/10 file: 116 exact, 13 near (all real spelling variants), 5 unmatched, and
-none ambiguous. Unmatched names are listed, not created. Without a worker number a new
+On the 03–09/10 file: 204 rows, 192 matched (17 of them near), 12 unmatched (one is D74,
+printed without a name), and none ambiguous. Unmatched names are listed, not created. Without a worker number a new
 account would clash with the one the daily report creates.
 
 **Daily wins** (`DriverDuty.source`):

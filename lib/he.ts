@@ -337,6 +337,97 @@ export const he = {
       noResults: 'לא נמצאו נהגים',
       call: (name: string) => `התקשר אל ${name}`,
     },
+    // Bottom tab bar of the drivers' pages.
+    nav: {
+      label: 'ניווט',
+      home: 'בית',
+      shifts: 'המשמרות שלי',
+      roster: 'סידור',
+      people: 'נהגים',
+      admin: 'ניהול',
+      settings: 'הגדרות',
+    },
+    // Badges: which report a shift came from.
+    source: {
+      DAILY: 'יומי',
+      WEEKLY: 'שבועי',
+    },
+    shiftsPage: {
+      title: 'המשמרות שלי',
+      upcoming: 'הבאות',
+      past: 'שהיו',
+      none: 'אין משמרות בסידור שפורסם',
+      thisWeek: (count: number) => (count === 1 ? 'משמרת אחת השבוע' : `${count} משמרות השבוע`),
+      myWeek: 'השבוע שלי',
+      all: 'הכל',
+      noneThisWeek: 'אין לך משמרות בשבוע הקרוב בסידור שפורסם',
+    },
+    shiftPage: {
+      title: 'פרטי משמרת',
+      notFound: 'המשמרת לא נמצאה',
+      timeline: 'מהלך המשמרת',
+      noTask: 'אין פירוט משימה למשמרת הזו',
+      driver: 'נהג',
+      mine: 'המשמרת שלי',
+      coveredBy: 'מכסה במקום',
+      linkLabel: 'לינק',
+      rowLabel: 'שורה בסידור',
+      sourceLabel: 'מקור',
+      sourceValue: { DAILY: 'סידור יומי', WEEKLY: 'סידור שבועי' },
+    },
+    rosterPage: {
+      title: 'סידור',
+      noRoster: 'עוד לא פורסם סידור',
+      search: 'חיפוש לפי שם, תחנה, רכבת או לינק',
+      count: (n: number) => `${n} משמרות`,
+      prev: 'היום הקודם',
+      next: 'היום הבא',
+      noResults: 'לא נמצאו משמרות',
+    },
+    peoplePage: {
+      title: 'נהגים',
+      search: 'חיפוש לפי שם, מספר עובד, עיר או טלפון',
+      count: (shown: number, total: number) => `${shown} מתוך ${total}`,
+    },
+    personPage: {
+      notFound: 'הנהג לא נמצא',
+      contact: 'יצירת קשר',
+      whatsapp: 'וואטסאפ',
+      call: 'שיחה',
+      city: 'עיר',
+      workerNumber: 'מספר עובד',
+      shifts: 'משמרות',
+      noShifts: 'אין משמרות בסידור שפורסם',
+      notRegistered: 'טרם נכנס לאפליקציה',
+    },
+    trainPage: {
+      title: (n: string) => `רכבת ${n}`,
+      drivers: 'נהגים ברכבת',
+      passengers: 'נוסעים ברכבת (בת)',
+      fromTo: (from: string | null, to: string | null) => [from, to].filter(Boolean).join(' ← '),
+      none: 'הרכבת לא מופיעה בסידור של היום הזה',
+      takesOver: (name: string, station: string | null) => (station ? `מקבל מ${name} בתחנת ${station}` : `מקבל מ${name}`),
+    },
+    stationPage: {
+      title: (name: string) => `תחנת ${name}`,
+      starting: 'מתחילים כאן',
+      handoffs: 'החלפות בתחנה',
+      handoff: (train: string) => `רכבת ${train}`,
+      none: 'אין משמרות או החלפות בתחנה ביום הזה',
+    },
+    reportPage: {
+      title: 'דיווח על תקלה',
+    },
+    adminPage: {
+      title: 'ניהול',
+    },
+    quick: {
+      myShifts: 'המשמרות שלי',
+      todayRoster: 'סידור היום',
+      report: 'דיווח על תקלה',
+      details: 'כל הפרטים',
+    },
+
     // The roster admin's area: he acts as the drivers' team lead and admin.
     admin: {
       title: 'ניהול נהגים',
@@ -389,10 +480,6 @@ export const he = {
       theyHandOverTo: 'מוחלף על ידי',
       none: 'לא נמצאה החלפה ברכבות של המשמרת',
       where: (train: string, station: string | null) => (station ? `רכבת ${train} · בתחנת ${station}` : `רכבת ${train}`),
-    },
-    day: {
-      tapHint: 'הקש על נהג כדי לראות את העבודה שלו היום',
-      showWork: (name: string) => `העבודה של ${name}`,
     },
     upload: {
       title: 'העלאת סידור עבודה',

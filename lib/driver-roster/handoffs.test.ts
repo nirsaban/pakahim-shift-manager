@@ -9,6 +9,10 @@ const label = (task: string) =>
   taskSteps(task).map((s) => (s.kind === 'train' ? s.number + (s.passenger ? 'בת' : '') : s.name));
 
 describe('taskSteps', () => {
+  it('keeps the yard, "מתחם אשקלון", as one place', () => {
+    expect(label('2512 - בדק - אשקלון - מתחם - מונית')).toEqual(['מונית', 'מתחם אשקלון', 'בדק', '2512']);
+  });
+
   it('reads a stored line in time order - the reverse of how it is stored', () => {
     expect(label('32 בת - ב"ש - 23 - לוד - 503 - 2504 - בדק')).toEqual(['בדק', '2504', '503', 'לוד', '23', 'ב"ש', '32בת']);
   });

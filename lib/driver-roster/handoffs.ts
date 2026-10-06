@@ -16,6 +16,7 @@
 export type Step = { kind: 'train'; number: string; passenger: boolean } | { kind: 'place'; name: string };
 
 const PASSENGER = 'בת';
+const YARD = 'מתחם';
 const TRAIN = /^\(?(\d{1,5})\)?$/;
 
 /** Words in a task that name an activity, not a station a train can change hands at. */
@@ -50,6 +51,11 @@ export function taskSteps(task: string): Step[] {
       // "(511" next to "511" is the same train printed twice.
       const last = steps[steps.length - 1];
       if (step.kind === 'train' && last?.kind === 'train' && last.number === step.number) continue;
+      // "מתחם" then "אשקלון" is one place, the yard - as the origin reads it.
+      if (step.kind === 'place' && last?.kind === 'place' && last.name === YARD) {
+        last.name = `${YARD} ${step.name}`;
+        continue;
+      }
       steps.push(step);
     }
   }
