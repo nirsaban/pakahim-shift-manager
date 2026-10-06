@@ -5,7 +5,7 @@ import { NOT_A_STATION } from './handoffs';
 
 /**
  * Parses the drivers' weekly link report - "דוח לינק יומי ושבועי", a landscape
- * table with one row per driver (their link, "D01") and one column per day of
+ * table with one row per driver (their link, "D01", "L08", "ל028") and one column per day of
  * the week. See docs/modules/drivers.md.
  *
  * - **Day columns** come from the header: each is a weekday letter beside a
@@ -56,8 +56,10 @@ type Item = Pick<PdfTextItem, 'str' | 'x' | 'y' | 'width' | 'dir'>;
 
 const TITLE = 'דוח לינק';
 const DATE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-// "D01", and a second series printed with a Hebrew ד: "ד01" (or "01ד" once reordered).
-const LINK = /^(?:[Dד]\d{1,3}|\d{1,3}ד)$/;
+// A series letter and a number: "D01", "L08", and Hebrew series such as "ד01" and
+// "ל028" (or "01ד" once reordered). The 03–09.10 file has four series; a new one
+// must not silently drop its drivers, so any single letter is taken.
+const LINK = /^(?:[A-Za-zא-ת]\d{1,3}|\d{1,3}[א-ת])$/;
 const REST = 'מנוחה';
 const PASSENGER = 'בת';
 const TIME = /(\d{1,2}):(\d{2})/g;
@@ -174,7 +176,11 @@ function readCell(items: Item[], day: number): { rest: boolean; shift: WeeklyRos
   const times = [...hours.matchAll(TIME)].map((m) => Number(m[1]) * 60 + Number(m[2]));
   if (times.length < 2) return { rest: false, shift: null, problem: 'no_hours' };
 
-  const taskLines = cellLines.map((words) => words.filter((w) => !HOURS_WORD.test(w))).filter((words) => words.length > 0);
+  // Brackets left once the hours are out group trains, "(30 - אוטם - 31)" in the ל
+  // series; they would stick to the train numbers, so they go.
+  const taskLines = cellLines
+    .map((words) => words.filter((w) => !HOURS_WORD.test(w)).map((w) => w.replace(/[()]/g, '')).filter(Boolean))
+    .filter((words) => words.length > 0);
   const task = taskLines.map(storedLine).join(' ');
   return {
     rest: false,

@@ -105,6 +105,27 @@ describe('parseWeeklyRoster', () => {
     expect(wed).toMatchObject({ originStation: null, startMinutes: 20 * 60, endMinutes: 4 * 60 });
   });
 
+  it('reads every link series, and drops the brackets that group trains', () => {
+    const { rows } = parseWeeklyRoster([
+      [
+        ...header(),
+        at('L08', 785, 504, 16),
+        at('איתן מיכאלי', 718, 504, 43),
+        ...cell(3, 504, [['(30', 'אוטם', '31)'], ['(10:35', '15:15)']]),
+        at('ל028', 784, 449, 20),
+        at('מיכאל משולמי', 710, 449, 52),
+        ...cell(3, 449, [['מנוחה']]),
+      ],
+    ]);
+    expect(rows.map((r) => [r.link, r.workerName])).toEqual([
+      ['L08', 'איתן מיכאלי'],
+      ['ל028', 'מיכאל משולמי'],
+    ]);
+    expect(rows[0].shifts[0]).toMatchObject({ originStation: 'אוטם', startMinutes: 10 * 60 + 35 });
+    expect(drivenTrains(taskSteps(rows[0].shifts[0].task))).toEqual(['30', '31']);
+    expect(rows[1].restDays).toEqual([3]);
+  });
+
   it('says when a work cell has no hours', () => {
     const { rows, warnings } = parseWeeklyRoster([
       [...header(), at('D03', 785, 504, 17), at('נהג', 737, 504, 24), ...cell(1, 504, [['מונית', 'הגנה', '7614']])],
@@ -122,9 +143,11 @@ describe.skipIf(!existsSync(REAL))('parseWeeklyRoster on the real 03–09.10.202
 
     expect(section).toBe('דרום נהגים');
     expect(days.map((d) => d.day)).toEqual([3, 4, 5, 6, 7, 8, 9]);
-    expect(rows).toHaveLength(134);
-    // Every cell is work or a day off: 134 drivers × 7 days.
-    expect(rows.reduce((n, r) => n + r.shifts.length + r.restDays.length, 0)).toBe(134 * 7);
+    // Four link series: D (pages 1-13), ד (14-17), ל (18-24) and L (25-27).
+    expect(rows).toHaveLength(204);
+    expect(new Set(rows.map((r) => r.link.replace(/\d/g, '')))).toEqual(new Set(['D', 'ד', 'ל', 'L']));
+    // Every cell is work or a day off: 204 drivers × 7 days.
+    expect(rows.reduce((n, r) => n + r.shifts.length + r.restDays.length, 0)).toBe(204 * 7);
     // The one problem in the file: a link printed without a driver's name.
     expect(warnings).toEqual(['עמוד 10: ללינק D74 אין שם נהג']);
 
@@ -141,6 +164,11 @@ describe.skipIf(!existsSync(REAL))('parseWeeklyRoster on the real 03–09.10.202
     ]);
     // The Hebrew series of links is read too.
     expect(rows.find((r) => r.link === 'ד01')?.workerName).toBe('אריק גייר');
+    // The later series were once dropped whole, the roster admin's row among them.
+    const l08 = rows.find((r) => r.link === 'L08')!;
+    expect(l08.workerName).toBe('איתן מיכאלי');
+    expect(l08.restDays).toEqual([0, 6]);
+    expect(rows.find((r) => r.link === 'ל028')?.workerName).toBe('מיכאל משולמי');
 
     // Handoffs come out of a weekly day as they do of a daily one.
     const monday = rows.flatMap((r) =>
@@ -150,6 +178,8 @@ describe.skipIf(!existsSync(REAL))('parseWeeklyRoster on the real 03–09.10.202
     );
     const found = [...dayHandoffs(monday).values()].flatMap((h) => h.handsOverTo);
     expect(found.length).toBeGreaterThan(30);
-    expect(found.every((h) => h.station)).toBe(true);
+    // Two have no station to give: the train ends the earlier cell, and the later
+    // cell (ל030, ל042) names trains only, no place.
+    expect(found.filter((h) => !h.station).map((h) => h.shiftId).sort()).toEqual(['ל030', 'ל042']);
   });
 });
