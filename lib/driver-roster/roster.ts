@@ -170,9 +170,16 @@ interface PageInfo {
 }
 
 function readPageHeader(items: Item[]): PageInfo {
-  const header = items.filter((i) => i.y > BODY_TOP).map((i) => clean(i.str));
-  // The section is its own item beside the "מחלקה:" label.
-  const section = header.find((t) => t.endsWith('נהגים')) ?? null;
+  const headerItems = items.filter((i) => i.y > BODY_TOP);
+  const header = headerItems.map((i) => clean(i.str));
+  // The section is its own item beside the "מחלקה:" label. Since 15.10 the
+  // header also has a top line, "תאריך הפקה: … נהגים", whose bare "נהגים" is
+  // no section; so the item on the label's line wins, else one naming a region.
+  const label = headerItems.find((i) => clean(i.str).startsWith('מחלקה'));
+  const named = headerItems.filter((i) => clean(i.str).endsWith('נהגים'));
+  const onLabelLine = label ? named.find((i) => Math.abs(i.y - label.y) < SAME_LINE) : undefined;
+  const sectionItem = onLabelLine ?? named.find((i) => clean(i.str) !== 'נהגים');
+  const section = sectionItem ? clean(sectionItem.str) : null;
   // "01/10/2026 :תאריך". The production stamp ("30/09/2026 14:43") is a separate
   // item from its "תאריך הפקה:" label, so requiring both parts in one item skips it.
   const m = header.find((t) => t.includes('תאריך') && REPORT_DATE.test(t))?.match(REPORT_DATE);

@@ -179,6 +179,15 @@ describe('parseDriverRoster', () => {
     expect(skippedSections).toEqual(['צפון נהגים']);
   });
 
+  it('takes the section beside "מחלקה:", not the bare "נהגים" on the top line (15.10 export)', () => {
+    const { rows, skippedSections } = parseDriverRoster([
+      [at('נהגים', 105, 818, 25), ...header('דרום נהגים'), ...row(735, { start: '04:30', end: '11:20', serial: '1', name: ['א', '700001'] })],
+      [at('נהגים', 105, 818, 25), ...header('צפון נהגים'), ...row(717, { start: '14:20', end: '20:35', serial: '73', name: ['ב', '700002'] })],
+    ]);
+    expect(rows.map((r) => r.serial)).toEqual([1]);
+    expect(skippedSections).toEqual(['צפון נהגים']);
+  });
+
   it('warns about a page dated differently from the rest', () => {
     const { date, warnings } = parseDriverRoster([
       [...header('דרום נהגים')],
